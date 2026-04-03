@@ -19,8 +19,10 @@
  */
 
 const ROOM_TIMEOUT_MS = parseInt(process.env.ROOM_TIMEOUT_MS || '300000', 10); // 5 min
+const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || '10000', 10);
 
 const rooms = new Map(); // roomId → { sender, receiver, shortCode, createdAt, timer }
+const shortCodes = new Set(); // active short codes for O(1) collision detection
 
 /** Generate a random alphanumeric string of given length */
 function randomString(len) {
@@ -32,13 +34,38 @@ function randomString(len) {
   return out;
 }
 
+/** Generate a roomId that does not collide with any existing room */
+function uniqueRoomId() {
+  let id;
+  do { id = randomString(12); } while (rooms.has(id));
+  return id;
+}
+
+/** Generate a short code (always uppercase) that does not collide with any active room */
+function uniqueShortCode() {
+  let code;
+  do { code = randomString(6).toUpperCase(); } while (shortCodes.has(code));
+  return code;
+}
+
 function createRoom(senderSocketId) {
-  const roomId = randomString(12);
-  const shortCode = randomString(6);
+  if (!senderSocketId || typeof senderSocketId !== 'string') {
+    throw new TypeError('senderSocketId must be a non-empty string');
+  }
+  if (rooms.size >= MAX_ROOMS) {
+    throw new Error('Server is at room capacity. Please try again later.');
+  }
+
+  const roomId = uniqueRoomId();
+  const shortCode = uniqueShortCode();
 
   const timer = setTimeout(() => {
+    shortCodes.delete(shortCode);
     rooms.delete(roomId);
   }, ROOM_TIMEOUT_MS);
+
+  // Allow the timer to be garbage-collected without blocking Node.js shutdown
+  if (typeof timer.unref === 'function') timer.unref();
 
   rooms.set(roomId, {
     sender: senderSocketId,
@@ -47,11 +74,19 @@ function createRoom(senderSocketId) {
     createdAt: Date.now(),
     timer,
   });
+  shortCodes.add(shortCode);
 
   return { roomId, shortCode };
 }
 
 function joinRoom(receiverSocketId, roomId) {
+  if (!receiverSocketId || typeof receiverSocketId !== 'string') {
+    return { error: 'invalid-input', message: 'receiverSocketId must be a non-empty string.' };
+  }
+  if (!roomId || typeof roomId !== 'string') {
+    return { error: 'invalid-input', message: 'roomId must be a non-empty string.' };
+  }
+
   const room = rooms.get(roomId);
   if (!room) return { error: 'room-not-found', message: 'Room not found or has expired.' };
   if (room.receiver) return { error: 'room-full', message: 'Room already has two peers.' };
@@ -80,8 +115,10 @@ function getRoomBySocket(socketId) {
 }
 
 function getRoomByShortCode(shortCode) {
+  if (!shortCode || typeof shortCode !== 'string') return null;
+  const normalised = shortCode.trim().toUpperCase();
   for (const [roomId, room] of rooms.entries()) {
-    if (room.shortCode === shortCode) return { roomId, room };
+    if (room.shortCode === normalised) return { roomId, room };
   }
   return null;
 }
@@ -90,6 +127,7 @@ function deleteRoom(roomId) {
   const room = rooms.get(roomId);
   if (room) {
     clearTimeout(room.timer);
+    shortCodes.delete(room.shortCode);
     rooms.delete(roomId);
   }
 }
