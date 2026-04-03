@@ -96,7 +96,7 @@ export default function ReceiverPage() {
     dc.binaryType = 'arraybuffer'
 
     dc.onopen = () => {
-      console.log('[DC] Data channel opened')
+      if (import.meta.env.DEV) console.log('[DC] Data channel opened')
       processMessageQueue()
     }
 
@@ -116,7 +116,7 @@ export default function ReceiverPage() {
     }
 
     dc.onclose = () => {
-      console.log('[DC] Data channel closed')
+      if (import.meta.env.DEV) console.log('[DC] Data channel closed')
     }
   }
 
