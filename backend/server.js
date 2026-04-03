@@ -44,7 +44,18 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const result = roomManager.joinRoom(socket.id, roomId);
+    // Support 6-char short codes: resolve to full roomId
+    let resolvedRoomId = roomId;
+    if (typeof roomId === 'string' && roomId.length !== 12) {
+      const found = roomManager.getRoomByShortCode(roomId.toUpperCase());
+      if (!found) {
+        socket.emit('room-not-found', { message: 'Room not found or has expired.' });
+        return;
+      }
+      resolvedRoomId = found.roomId;
+    }
+
+    const result = roomManager.joinRoom(socket.id, resolvedRoomId);
 
     if (result.error === 'room-not-found') {
       socket.emit('room-not-found', { message: result.message });
@@ -55,12 +66,12 @@ io.on('connection', (socket) => {
       return;
     }
 
-    socket.join(roomId);
-    console.log(`[Room] ${socket.id} joined room ${roomId}`);
+    socket.join(resolvedRoomId);
+    console.log(`[Room] ${socket.id} joined room ${resolvedRoomId}`);
 
     // Notify sender that receiver has joined – sender should now create offer
     const room = result.room;
-    io.to(room.sender).emit('peer-joined', { roomId });
+    io.to(room.sender).emit('peer-joined', { roomId: resolvedRoomId });
   });
 
   // ─────────────────────────────────────────────

@@ -79,6 +79,13 @@ function getRoomBySocket(socketId) {
   return null;
 }
 
+function getRoomByShortCode(shortCode) {
+  for (const [roomId, room] of rooms.entries()) {
+    if (room.shortCode === shortCode) return { roomId, room };
+  }
+  return null;
+}
+
 function deleteRoom(roomId) {
   const room = rooms.get(roomId);
   if (room) {
@@ -102,6 +109,7 @@ module.exports = {
   getRoom,
   getRoomBySender,
   getRoomBySocket,
+  getRoomByShortCode,
   deleteRoom,
   removeSocketFromRoom,
 };
