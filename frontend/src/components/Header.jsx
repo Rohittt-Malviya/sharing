@@ -30,6 +30,8 @@ export default function Header() {
                 key={item}
                 className="text-slate-400 hover:text-white text-sm font-medium transition-colors duration-200"
                 onClick={() => {}}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
+                type="button"
               >
                 {item}
               </button>
