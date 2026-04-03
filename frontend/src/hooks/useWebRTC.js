@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -7,7 +7,6 @@ const ICE_SERVERS = [
 ];
 
 export function useWebRTC() {
-  const pcRef = useRef(null);
 
   /**
    * Create a new RTCPeerConnection and attach standard handlers.
@@ -41,7 +40,6 @@ export function useWebRTC() {
       console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
     };
 
-    pcRef.current = pc;
     return pc;
   }, []);
 
@@ -108,5 +106,5 @@ export function useWebRTC() {
     }
   }, []);
 
-  return { createPeerConnection, createOffer, createAnswer, setRemoteAnswer, addIceCandidate, pcRef };
+  return { createPeerConnection, createOffer, createAnswer, setRemoteAnswer, addIceCandidate };
 }
