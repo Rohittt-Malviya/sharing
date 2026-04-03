@@ -147,6 +147,15 @@ export default function ReceiverPage() {
     const socket = getSocket()
     roomIdRef.current = rid
 
+    // Remove any previously registered listeners before re-registering,
+    // so that retrying a join doesn't accumulate duplicate handlers.
+    socket.off('room-not-found')
+    socket.off('room-full')
+    socket.off('webrtc-offer')
+    socket.off('ice-candidate')
+    socket.off('peer-disconnected')
+    socket.off('error')
+
     socket.emit('join-room', { roomId: rid })
     console.log('[Receiver] Joining room:', rid)
 

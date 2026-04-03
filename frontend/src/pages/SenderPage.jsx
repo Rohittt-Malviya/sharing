@@ -58,10 +58,7 @@ export default function SenderPage() {
     if (!file) return
     const socket = getSocket()
 
-    // Create room
-    socket.emit('create-room')
-    setStatus('creating')
-
+    // Register room-created listener BEFORE emitting, to avoid any race condition
     socket.on('room-created', ({ roomId: rid, shortCode: sc }) => {
       setRoomId(rid)
       setShortCode(sc)
@@ -69,6 +66,10 @@ export default function SenderPage() {
       setStatus('waiting')
       console.log('[Sender] Room created:', rid, sc)
     })
+
+    // Create room
+    socket.emit('create-room')
+    setStatus('creating')
 
     socket.on('peer-joined', async ({ roomId: rid }) => {
       console.log('[Sender] Peer joined room:', rid)
