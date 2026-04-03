@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getSocket, disconnectSocket } from '../utils/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { importKey, decryptData, hashBuffer } from '../utils/crypto'
-import { chunksToBlob, formatBytes, formatSpeed, formatEta } from '../utils/fileUtils'
+import { chunksToBlob, formatBytes } from '../utils/fileUtils'
 import TransferProgress from '../components/TransferProgress'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 // AES-GCM adds a small overhead (IV + auth tag) so encrypted size > original
 const ENCRYPTION_OVERHEAD_FACTOR = 1.01
@@ -26,6 +27,7 @@ export default function ReceiverPage() {
 
   const encKeyRef = useRef(null)
   const chunksRef = useRef([])
+  // eslint-disable-next-line no-unused-vars
   const totalBytesRef = useRef(0)
   const receivedBytesRef = useRef(0)
   const startTimeRef = useRef(null)
@@ -41,6 +43,7 @@ export default function ReceiverPage() {
   const onDataChannel = useCallback((channel) => {
     console.log('[Receiver] DataChannel received')
     setupDataChannel(channel)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const { createPeerConnection, createAnswer, addIceCandidate, closePeerConnection } =
@@ -161,6 +164,7 @@ export default function ReceiverPage() {
       console.log('[Receiver] Offer received')
       setStatusBoth('waiting')
       try {
+        // eslint-disable-next-line no-unused-vars
         const pc = createPeerConnection()
         const answer = await createAnswer(offer)
         socket.emit('webrtc-answer', { answer, roomId: rid })
@@ -220,23 +224,29 @@ export default function ReceiverPage() {
   // Manual join form (no roomId in URL)
   if (!roomId && status === 'joining' && !roomIdRef.current) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
-        <div className="text-center">
-          <div className="text-5xl mb-3">📥</div>
-          <h1 className="text-2xl font-bold text-white">Join a Room</h1>
+      <div className="page-container gap-6">
+        <div className="text-center animate-slide-up">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-3xl mb-4 shadow-glow-success">
+            📥
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-1">Join a Room</h1>
+          <p className="text-slate-400 text-sm">Enter the code shared by the sender</p>
         </div>
-        <div className="w-full max-w-md card">
-          <form onSubmit={handleManualJoin} className="flex flex-col gap-3">
+        <div className="w-full max-w-sm card animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <form onSubmit={handleManualJoin} className="flex flex-col gap-4">
             <input
               type="text"
-              className="input-field uppercase tracking-widest text-center text-xl"
-              placeholder="Enter room code"
+              className="input-field uppercase tracking-[0.3em] text-center text-2xl font-mono font-bold"
+              placeholder="XXXXXX"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               maxLength={12}
               autoFocus
+              aria-label="Room code"
             />
-            <button type="submit" className="btn-primary">Join</button>
+            <button type="submit" className="btn-primary w-full">
+              Join Room →
+            </button>
           </form>
         </div>
       </div>
@@ -245,22 +255,23 @@ export default function ReceiverPage() {
 
   if (status === 'joining' || status === 'waiting') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
-        <div className="text-5xl animate-pulse">🔗</div>
-        <h2 className="text-xl font-bold text-white">
-          {status === 'joining' ? 'Joining room…' : 'Waiting for sender…'}
-        </h2>
-        <p className="text-slate-400 text-sm">Room: {roomIdRef.current}</p>
+      <div className="page-container gap-5">
+        <LoadingSpinner size="lg" label={status === 'joining' ? 'Joining room…' : 'Waiting for sender…'} />
+        <span className="badge-sky">Room: {roomIdRef.current}</span>
       </div>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
-        <div className="text-5xl">❌</div>
-        <h2 className="text-xl font-bold text-red-400">Connection Failed</h2>
-        <p className="text-slate-400 text-center">{error}</p>
+      <div className="page-container gap-5">
+        <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-3xl shadow-glow-danger">
+          ❌
+        </div>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">Connection Failed</h2>
+          <p className="text-slate-400 max-w-sm">{error}</p>
+        </div>
         <button className="btn-primary" onClick={() => navigate('/')}>Go Home</button>
       </div>
     )
@@ -268,18 +279,20 @@ export default function ReceiverPage() {
 
   if (status === 'receiving') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
-        <div className="w-full max-w-md card">
-          <h2 className="text-lg font-semibold text-sky-400 mb-4">
-            📥 Receiving {fileInfo?.name}
-          </h2>
-          <TransferProgress
-            progress={progress}
-            speed={speed}
-            eta={eta}
-            fileName={fileInfo?.name}
-            fileSize={fileInfo?.size}
-          />
+      <div className="page-container gap-6">
+        <div className="w-full max-w-md">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="badge-emerald">📥 Receiving</span>
+          </div>
+          <div className="card">
+            <TransferProgress
+              progress={progress}
+              speed={speed}
+              eta={eta}
+              fileName={fileInfo?.name}
+              fileSize={fileInfo?.size}
+            />
+          </div>
         </div>
       </div>
     )
@@ -287,24 +300,37 @@ export default function ReceiverPage() {
 
   if (status === 'done') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-4">
-        <div className="text-5xl">✅</div>
-        <h2 className="text-xl font-bold text-emerald-400">File Received!</h2>
-        <div className="w-full max-w-md card text-center">
-          <p className="text-white font-semibold mb-1">{downloadName}</p>
-          <p className="text-slate-400 text-sm mb-4">{formatBytes(fileInfo?.size || 0)}</p>
+      <div className="page-container gap-6">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-3xl shadow-glow-success animate-bounce-gentle">
+          ✅
+        </div>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white mb-2">File Received!</h2>
+          <p className="text-slate-400">Your file is ready to download.</p>
+        </div>
+        <div className="w-full max-w-sm card text-center animate-slide-up">
+          <div className="flex items-center gap-3 mb-5 text-left">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+              📄
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-semibold truncate">{downloadName}</p>
+              <p className="text-slate-400 text-sm">{formatBytes(fileInfo?.size || 0)}</p>
+            </div>
+          </div>
           <a
             href={downloadUrl}
             download={downloadName}
-            className="btn-primary inline-block"
+            className="btn-success w-full"
           >
             ⬇️ Download File
           </a>
         </div>
-        <button className="btn-secondary" onClick={() => navigate('/')}>Receive Another</button>
+        <button className="btn-secondary" onClick={() => navigate('/')}>Receive Another File</button>
       </div>
     )
   }
 
   return null
 }
+
