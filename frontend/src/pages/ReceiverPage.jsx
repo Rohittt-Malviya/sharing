@@ -219,7 +219,11 @@ export default function ReceiverPage() {
       socket.off('peer-disconnected', onPeerDisconnected)
       socket.off('error', onError)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // createAnswer and addIceCandidate are stable useCallback refs; paramRoomId is
+  // fixed for the component's lifetime (React Router won't remount on same route).
+  // initPeerConnection is defined inline and intentionally captured at mount time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createAnswer, addIceCandidate, paramRoomId])
 
   const handleManualJoin = async () => {
     if (!manualCode.trim()) return
@@ -247,7 +251,7 @@ export default function ReceiverPage() {
         {step === 'join' && (
           <div className="flex flex-col gap-6">
             <h1 className="text-2xl font-bold text-white">Receive a File</h1>
-            <p className="text-slate-400">Enter the 6-character code from the sender</p>
+            <p className="text-slate-400">Enter the 6-character code or full room ID from the sender</p>
             <input
               type="text"
               className="input-field uppercase tracking-widest text-center font-mono text-base"

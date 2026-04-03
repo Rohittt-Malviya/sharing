@@ -228,7 +228,10 @@ export default function SenderPage() {
       socket.off('error', onError)
       clearTimeout(sendTimeoutRef.current)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // createPeerConnection, createOffer, setRemoteAnswer, addIceCandidate are stable
+  // useCallback refs; startFileTransfer is intentionally captured at mount time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createPeerConnection, createOffer, setRemoteAnswer, addIceCandidate])
 
   const joinUrl = roomId ? `${window.location.origin}/join/${roomId}` : ''
 
