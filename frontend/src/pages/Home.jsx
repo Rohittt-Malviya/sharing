@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AlertBanner from '../components/AlertBanner'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -34,7 +35,6 @@ export default function Home() {
     e.preventDefault()
     const code = joinCode.trim().toUpperCase()
     if (!code) { setError('Enter a room code or paste a link.'); return }
-    // If it looks like a full URL, extract the roomId
     if (code.startsWith('HTTP')) {
       try {
         const url = new URL(joinCode.trim())
@@ -51,33 +51,49 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 gap-8">
-      {/* Header */}
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 gap-8 animate-fade-in">
+      {/* Hero */}
       <div className="text-center">
-        <div className="text-5xl mb-3">📡</div>
-        <h1 className="text-4xl font-bold text-white mb-2">ShareDrop</h1>
-        <p className="text-slate-400">Secure peer-to-peer file sharing via WebRTC</p>
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-sky-500/30 to-violet-600/30 border border-white/20 shadow-glow-brand mb-5 animate-bounce-gentle">
+          <span className="text-4xl">📡</span>
+        </div>
+        <h1 className="text-5xl font-bold text-white mb-3 text-glow">ShareDrop</h1>
+        <p className="text-slate-400 text-lg max-w-sm mx-auto leading-relaxed">
+          Instant, secure peer-to-peer file sharing — no sign-up, no storage.
+        </p>
+        <div className="flex items-center justify-center gap-4 mt-4 flex-wrap">
+          <span className="badge-sky">🔒 End-to-End Encrypted</span>
+          <span className="badge-emerald">⚡ WebRTC Direct</span>
+          <span className="badge-amber">🌐 No Upload Limit*</span>
+        </div>
       </div>
 
-      <div className="w-full max-w-md flex flex-col gap-6">
+      <div className="w-full max-w-md flex flex-col gap-5">
         {/* Send File Card */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-4 text-sky-400">📤 Send a File</h2>
+        <div className="card animate-slide-up">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-7 h-7 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sm">📤</span>
+            <h2 className="text-base font-semibold text-sky-300">Send a File</h2>
+          </div>
 
           <div
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors duration-200 ${
-              dragActive
-                ? 'border-sky-400 bg-sky-400/10'
-                : 'border-slate-600 hover:border-sky-500 hover:bg-slate-700/50'
-            }`}
+            className={`drop-zone ${dragActive ? 'drop-zone-active' : ''}`}
             onClick={() => fileInputRef.current?.click()}
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
+            role="button"
+            tabIndex={0}
+            aria-label="Drop a file here or click to browse"
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
           >
-            <div className="text-4xl mb-2">📁</div>
-            <p className="text-slate-300 font-medium">Drop a file here</p>
-            <p className="text-slate-500 text-sm mt-1">or click to browse (up to 500 MB)</p>
+            <div className="text-4xl mb-3 transition-transform duration-200">
+              {dragActive ? '🎯' : '📁'}
+            </div>
+            <p className="text-white font-medium">
+              {dragActive ? 'Release to select' : 'Drop a file here'}
+            </p>
+            <p className="text-slate-400 text-sm mt-1">or click to browse · up to 500 MB</p>
           </div>
 
           <input
@@ -85,37 +101,45 @@ export default function Home() {
             type="file"
             className="hidden"
             onChange={onFileInputChange}
+            aria-hidden="true"
           />
         </div>
 
         {/* Receive File Card */}
-        <div className="card">
-          <h2 className="text-lg font-semibold mb-4 text-emerald-400">📥 Receive a File</h2>
+        <div className="card animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-sm">📥</span>
+            <h2 className="text-base font-semibold text-emerald-300">Receive a File</h2>
+          </div>
           <form onSubmit={handleJoin} className="flex flex-col gap-3">
             <input
               type="text"
-              className="input-field uppercase tracking-widest"
+              className="input-field uppercase tracking-widest text-center"
               placeholder="Enter 6-char code or paste link"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
               maxLength={200}
+              aria-label="Room code or shareable link"
             />
-            <button type="submit" className="btn-secondary">
-              Join Room
+            <button type="submit" className="btn-primary w-full">
+              Join Room →
             </button>
           </form>
         </div>
 
         {error && (
-          <div className="bg-red-900/50 border border-red-500 rounded-xl p-3 text-red-300 text-sm text-center">
-            {error}
-          </div>
+          <AlertBanner
+            type="error"
+            message={error}
+            onDismiss={() => setError('')}
+          />
         )}
       </div>
 
       <p className="text-slate-600 text-xs text-center">
-        End-to-end encrypted · No files stored on server · Open source
+        *Up to 500 MB · Files never touch our servers · Open source
       </p>
     </div>
   )
 }
+

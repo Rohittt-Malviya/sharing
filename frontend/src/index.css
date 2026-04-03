@@ -5,23 +5,154 @@
 @layer base {
   html {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    scroll-behavior: smooth;
   }
   body {
-    @apply bg-slate-900 text-slate-100 min-h-screen;
+    @apply min-h-screen text-slate-100;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    background-attachment: fixed;
+  }
+  * {
+    @apply box-border;
   }
 }
 
 @layer components {
+  /* ── Buttons ── */
   .btn-primary {
-    @apply bg-sky-500 hover:bg-sky-600 active:bg-sky-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply relative inline-flex items-center justify-center gap-2
+           bg-gradient-to-r from-sky-500 to-brand-600
+           hover:from-sky-400 hover:to-brand-500
+           active:from-sky-600 active:to-brand-700
+           text-white font-semibold py-3 px-6 rounded-xl
+           transition-all duration-200
+           shadow-md hover:shadow-glow-brand
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
+           focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900
+           overflow-hidden;
   }
   .btn-secondary {
-    @apply bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200;
+    @apply relative inline-flex items-center justify-center gap-2
+           bg-white/10 hover:bg-white/20 active:bg-white/5
+           border border-white/20 hover:border-white/40
+           text-white font-semibold py-3 px-6 rounded-xl
+           transition-all duration-200 backdrop-blur-sm
+           focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-900
+           overflow-hidden;
   }
+  .btn-success {
+    @apply relative inline-flex items-center justify-center gap-2
+           bg-gradient-to-r from-emerald-500 to-teal-600
+           hover:from-emerald-400 hover:to-teal-500
+           text-white font-semibold py-3 px-6 rounded-xl
+           transition-all duration-200
+           shadow-md hover:shadow-glow-success
+           focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900
+           overflow-hidden;
+  }
+  .btn-danger {
+    @apply relative inline-flex items-center justify-center gap-2
+           bg-gradient-to-r from-red-500 to-rose-600
+           hover:from-red-400 hover:to-rose-500
+           text-white font-semibold py-3 px-6 rounded-xl
+           transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-slate-900
+           overflow-hidden;
+  }
+
+  /* ── Cards ── */
   .card {
-    @apply bg-slate-800 rounded-2xl p-6 shadow-xl;
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 shadow-glass;
   }
+  .card-hover {
+    @apply card hover:bg-white/10 hover:border-white/20 hover:shadow-glass-lg transition-all duration-200;
+  }
+
+  /* ── Input fields ── */
   .input-field {
-    @apply bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 w-full;
+    @apply bg-white/10 backdrop-blur-sm
+           border border-white/20
+           rounded-xl px-4 py-3
+           text-white placeholder-slate-400
+           focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500/50
+           hover:border-white/30
+           transition-colors duration-200
+           w-full;
+  }
+
+  /* ── Status badges ── */
+  .badge {
+    @apply inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  .badge-sky {
+    @apply badge bg-sky-500/20 text-sky-300 border border-sky-500/30;
+  }
+  .badge-emerald {
+    @apply badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/30;
+  }
+  .badge-amber {
+    @apply badge bg-amber-500/20 text-amber-300 border border-amber-500/30;
+  }
+  .badge-red {
+    @apply badge bg-red-500/20 text-red-300 border border-red-500/30;
+  }
+
+  /* ── Dividers ── */
+  .divider {
+    @apply border-t border-white/10 my-4;
+  }
+
+  /* ── Stat boxes ── */
+  .stat-box {
+    @apply bg-white/5 rounded-xl p-3 text-center border border-white/10;
+  }
+
+  /* ── Drag zone ── */
+  .drop-zone {
+    @apply border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer
+           transition-all duration-200
+           border-white/20 hover:border-brand-400 hover:bg-brand-500/5;
+  }
+  .drop-zone-active {
+    @apply border-sky-400 bg-sky-400/10 scale-[1.01];
+  }
+
+  /* ── Animated progress bar ── */
+  .progress-bar-track {
+    @apply w-full bg-white/10 rounded-full overflow-hidden;
+  }
+  .progress-bar-fill {
+    @apply h-full rounded-full transition-all duration-300;
+    background: linear-gradient(90deg, #0ea5e9, #8b5cf6, #0ea5e9);
+    background-size: 200% auto;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* ── Page container ── */
+  .page-container {
+    @apply min-h-screen flex flex-col items-center justify-center p-4 animate-fade-in;
+  }
+
+  /* ── Glow text ── */
+  .text-glow {
+    text-shadow: 0 0 20px rgba(14,165,233,0.5);
   }
 }
+
+/* Scrollbar */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148,163,184,0.3);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148,163,184,0.5);
+  }
+}
+
