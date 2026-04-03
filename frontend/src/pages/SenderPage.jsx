@@ -11,6 +11,7 @@ import TransferProgress from '../components/TransferProgress'
 const SEND_TIMEOUT_MS = 30000
 const HIGH_WATER_MARK = 1024 * 1024 // 1 MB
 const LOW_WATER_MARK = 256 * 1024   // 256 KB
+const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2 GB
 
 export default function SenderPage() {
   const navigate = useNavigate()
@@ -33,6 +34,11 @@ export default function SenderPage() {
   const handleFileSelect = (e) => {
     const f = e.target.files?.[0]
     if (f) {
+      if (f.size > MAX_FILE_SIZE) {
+        setError(`File is too large. Maximum allowed size is ${(MAX_FILE_SIZE / (1024 * 1024 * 1024)).toFixed(0)} GB.`)
+        e.target.value = ''
+        return
+      }
       setFile(f)
       fileRef.current = f
     }
@@ -160,7 +166,7 @@ export default function SenderPage() {
         dcRef.current = dc
 
         dc.onopen = () => {
-          console.log('[DC] Data channel opened')
+          if (import.meta.env.DEV) console.log('[DC] Data channel opened')
           clearTimeout(sendTimeoutRef.current)
           startFileTransfer(dc)
         }
@@ -172,7 +178,7 @@ export default function SenderPage() {
         }
 
         dc.onclose = () => {
-          console.log('[DC] Data channel closed')
+          if (import.meta.env.DEV) console.log('[DC] Data channel closed')
         }
 
         // Timeout if data channel never opens
@@ -214,11 +220,23 @@ export default function SenderPage() {
       setStep('error')
     }
 
+    const onPeerDisconnected = () => {
+      setError('The receiver has disconnected.')
+      setStep((s) => (s !== 'done' ? 'error' : s))
+    }
+
+    const onRoomFull = ({ message }) => {
+      setError(message || 'Room is already full.')
+      setStep('error')
+    }
+
     socket.on('room-created', onRoomCreated)
     socket.on('peer-joined', onPeerJoined)
     socket.on('webrtc-answer', onAnswer)
     socket.on('ice-candidate', onIceCandidate)
     socket.on('error', onError)
+    socket.on('peer-disconnected', onPeerDisconnected)
+    socket.on('room-full', onRoomFull)
 
     return () => {
       socket.off('room-created', onRoomCreated)
@@ -226,6 +244,8 @@ export default function SenderPage() {
       socket.off('webrtc-answer', onAnswer)
       socket.off('ice-candidate', onIceCandidate)
       socket.off('error', onError)
+      socket.off('peer-disconnected', onPeerDisconnected)
+      socket.off('room-full', onRoomFull)
       clearTimeout(sendTimeoutRef.current)
     }
   // createPeerConnection, createOffer, setRemoteAnswer, addIceCandidate are stable

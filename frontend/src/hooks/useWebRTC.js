@@ -24,20 +24,22 @@ export function useWebRTC() {
     };
 
     pc.onicecandidateerror = (event) => {
-      console.warn(
-        '[WebRTC] ICE candidate error:',
-        event.errorCode,
-        event.errorText,
-        event.url,
-      );
+      if (import.meta.env.DEV) {
+        console.warn(
+          '[WebRTC] ICE candidate error:',
+          event.errorCode,
+          event.errorText,
+          event.url,
+        );
+      }
     };
 
     pc.onconnectionstatechange = () => {
-      console.log('[WebRTC] Connection state:', pc.connectionState);
+      if (import.meta.env.DEV) console.log('[WebRTC] Connection state:', pc.connectionState);
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      if (import.meta.env.DEV) console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
     };
 
     return pc;
@@ -67,7 +69,7 @@ export function useWebRTC() {
    */
   const createAnswer = useCallback(async (pc, offer) => {
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      await pc.setRemoteDescription(offer);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       return answer;
@@ -84,7 +86,7 @@ export function useWebRTC() {
    */
   const setRemoteAnswer = useCallback(async (pc, answer) => {
     try {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      await pc.setRemoteDescription(answer);
     } catch (err) {
       console.error('[WebRTC] Failed to set remote answer:', err);
       throw err;
@@ -99,7 +101,7 @@ export function useWebRTC() {
   const addIceCandidate = useCallback(async (pc, candidate) => {
     if (!pc || !candidate) return;
     try {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      await pc.addIceCandidate(candidate);
     } catch (err) {
       // Non-fatal: log and continue
       console.warn('[WebRTC] Failed to add ICE candidate:', err);
