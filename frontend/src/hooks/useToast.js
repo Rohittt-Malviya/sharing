@@ -3,7 +3,7 @@ import { ToastContext } from '../contexts/ToastContext'
 
 /**
  * Consume the ToastContext. Must be called inside a <ToastProvider>.
- * @returns {{ toasts: import('../contexts/ToastContext').Toast[]; addToast: Function; removeToast: Function }}
+ * @returns {{ toasts: Array; addToast: (type: string, message: string, duration?: number) => void; removeToast: (id: number) => void }}
  */
 function useToastContext() {
   const ctx = useContext(ToastContext)

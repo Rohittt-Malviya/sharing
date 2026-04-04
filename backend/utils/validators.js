@@ -48,7 +48,7 @@ function isValidRoomId(roomId) {
  * @returns {boolean}
  */
 function isValidIceCandidate(candidate) {
-  if (candidate === null) return true; // null == end-of-candidates
+  if (candidate === null) return true; // null === end-of-candidates
   return (
     candidate !== null &&
     typeof candidate === 'object' &&

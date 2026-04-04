@@ -47,8 +47,9 @@ export function createRoom(timeoutMs = 10000) {
 
 /**
  * Emit 'join-room' for the given roomId/shortCode.
- * Resolves when the backend acknowledges the join (via peer-joined on the sender side).
- * Note: the receiver side simply emits join-room and waits for the webrtc-offer event.
+ * Resolves after a short wait for immediate error responses from the server.
+ * If the server responds with room-not-found or room-full, the promise is rejected.
+ * Note: successful join is confirmed later via the webrtc-offer event on the page.
  *
  * @param {string} roomId
  * @param {number} [timeoutMs=10000]
@@ -57,7 +58,9 @@ export function createRoom(timeoutMs = 10000) {
 export function joinRoom(roomId, timeoutMs = 10000) {
   return waitForSocketConnection().then((socket) => {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      let successTimer
+
+      const joinTimer = setTimeout(() => {
         cleanup()
         reject(new Error('Timed out while trying to join room.'))
       }, timeoutMs)
@@ -78,7 +81,8 @@ export function joinRoom(roomId, timeoutMs = 10000) {
       }
 
       function cleanup() {
-        clearTimeout(timer)
+        clearTimeout(joinTimer)
+        clearTimeout(successTimer)
         socket.off('room-not-found', onNotFound)
         socket.off('room-full', onFull)
         socket.off('error', onError)
@@ -89,9 +93,13 @@ export function joinRoom(roomId, timeoutMs = 10000) {
       socket.once('error', onError)
       socket.emit('join-room', { roomId })
 
-      // Resolve immediately after emitting — the receiver handles offer via socket events
-      cleanup()
-      resolve()
+      // Wait briefly for immediate error responses before assuming success.
+      // The server processes the join synchronously, so a round-trip error
+      // will arrive well within this window under normal network conditions.
+      successTimer = setTimeout(() => {
+        cleanup()
+        resolve()
+      }, 300)
     })
   }).catch((err) => {
     throw new Error('Failed to connect to server: ' + err.message)
