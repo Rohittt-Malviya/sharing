@@ -5,6 +5,8 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const roomManager = require('./utils/roomManager');
 const { registerSocketHandlers } = require('./socket/socketHandler');
+const logger = require('./utils/logger');
+const errorHandler = require('./middleware/errorHandler');
 
 const PORT = process.env.PORT || 4000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -17,13 +19,16 @@ app.use(express.json());
 // Dev-only request logging middleware
 if (isDev) {
   app.use((req, _res, next) => {
-    console.log(`[HTTP] ${req.method} ${req.path}`);
+    logger.debug(`[HTTP] ${req.method} ${req.path}`);
     next();
   });
 }
 
 // Health check endpoint
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// Centralised error handler (must be after routes)
+app.use(errorHandler);
 
 const server = http.createServer(app);
 
@@ -37,26 +42,27 @@ registerSocketHandlers(io, roomManager);
 
 server.listen(PORT, () => {
   if (isDev) {
-    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-    console.log(`   Accepting connections from: ${FRONTEND_URL}\n`);
+    logger.info(`\n🚀 Server running on http://localhost:${PORT}`);
+    logger.info(`   Accepting connections from: ${FRONTEND_URL}\n`);
   }
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
 function shutdown(signal) {
-  console.log(`\n[Server] ${signal} received — shutting down gracefully…`);
+  logger.info(`[Server] ${signal} received — shutting down gracefully…`);
   server.close(() => {
-    console.log('[Server] HTTP server closed.');
+    logger.info('[Server] HTTP server closed.');
     process.exit(0);
   });
 
   // Force exit if connections linger beyond 10 s
   setTimeout(() => {
-    console.error('[Server] Forced exit after timeout.');
+    logger.error('[Server] Forced exit after timeout.');
     process.exit(1);
   }, 10000).unref();
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+

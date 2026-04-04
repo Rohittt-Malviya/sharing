@@ -4,11 +4,17 @@
  * Separates real-time signaling concerns from the Express server setup so that
  * `server.js` stays thin and focused on HTTP/infrastructure configuration.
  *
+ * Business logic is delegated to the dedicated controllers:
+ *  - RoomController   – room lifecycle (create / join)
+ *  - SignalingController – WebRTC signaling relay (offer / answer / ICE)
+ *
  * @param {import('socket.io').Server} io
  * @param {typeof import('../utils/roomManager')} roomManager
  */
 
-const isDev = process.env.NODE_ENV !== 'production';
+const logger = require('../utils/logger');
+const { handleCreateRoom, handleJoinRoom } = require('../controllers/RoomController');
+const { handleOffer, handleAnswer, handleIceCandidate } = require('../controllers/SignalingController');
 
 // ── Simple per-socket rate limiter ───────────────────────────────────────────
 
@@ -49,20 +55,11 @@ function checkRateLimit(socketId, eventName) {
   return limits[eventName].count <= max;
 }
 
-// ── SDP / ICE validation helpers ─────────────────────────────────────────────
-
-function isValidSdp(sdp) {
-  return (
-    sdp !== null &&
-    typeof sdp === 'object' &&
-    typeof sdp.type === 'string' &&
-    typeof sdp.sdp === 'string'
-  );
-}
+// ── Handler registration ──────────────────────────────────────────────────────
 
 function registerSocketHandlers(io, roomManager) {
   io.on('connection', (socket) => {
-    if (isDev) console.log(`[+] Connected: ${socket.id}`);
+    logger.debug(`[+] Connected: ${socket.id}`);
 
     // ─────────────────────────────────────────────
     // Sender creates a room
@@ -72,120 +69,49 @@ function registerSocketHandlers(io, roomManager) {
         socket.emit('error', { message: 'Too many requests. Please slow down.' });
         return;
       }
-      try {
-        const { roomId, shortCode } = roomManager.createRoom(socket.id);
-        socket.join(roomId);
-        socket.emit('room-created', { roomId, shortCode });
-        if (isDev) console.log(`[Room] Created: ${roomId} (${shortCode}) by ${socket.id}`);
-      } catch (err) {
-        socket.emit('error', { message: err.message });
-      }
+      handleCreateRoom(socket, io, roomManager, logger);
     });
 
     // ─────────────────────────────────────────────
     // Receiver joins a room
     // ─────────────────────────────────────────────
-    socket.on('join-room', ({ roomId } = {}) => {
+    socket.on('join-room', (payload = {}) => {
       if (!checkRateLimit(socket.id, 'join-room')) {
         socket.emit('error', { message: 'Too many requests. Please slow down.' });
         return;
       }
-      if (!roomId || typeof roomId !== 'string' || !roomId.trim()) {
-        socket.emit('error', { message: 'roomId is required.' });
-        return;
-      }
-
-      const normalised = roomId.trim();
-
-      // Support 6-char short codes: resolve to full roomId
-      let resolvedRoomId = normalised;
-      if (normalised.length !== 12) {
-        const found = roomManager.getRoomByShortCode(normalised.toUpperCase());
-        if (!found) {
-          socket.emit('room-not-found', { message: 'Room not found or has expired.' });
-          return;
-        }
-        resolvedRoomId = found.roomId;
-      }
-
-      const result = roomManager.joinRoom(socket.id, resolvedRoomId);
-
-      if (result.error === 'room-not-found') {
-        socket.emit('room-not-found', { message: result.message });
-        return;
-      }
-      if (result.error === 'room-full') {
-        socket.emit('room-full', { message: result.message });
-        return;
-      }
-
-      socket.join(resolvedRoomId);
-      if (isDev) console.log(`[Room] ${socket.id} joined room ${resolvedRoomId}`);
-
-      // Notify sender that receiver has joined — sender should now create the offer
-      const room = result.room;
-      io.to(room.sender).emit('peer-joined', { roomId: resolvedRoomId });
+      handleJoinRoom(socket, payload, io, roomManager, logger);
     });
 
     // ─────────────────────────────────────────────
     // WebRTC Signaling relay
     // ─────────────────────────────────────────────
-    socket.on('webrtc-offer', ({ offer, roomId } = {}) => {
+    socket.on('webrtc-offer', (payload = {}) => {
       if (!checkRateLimit(socket.id, 'webrtc-offer')) {
         socket.emit('error', { message: 'Too many requests. Please slow down.' });
         return;
       }
-      if (!roomId || typeof roomId !== 'string') {
-        socket.emit('error', { message: 'offer and roomId are required.' });
-        return;
-      }
-      if (!isValidSdp(offer)) {
-        socket.emit('error', { message: 'Invalid offer format.' });
-        return;
-      }
-      const room = roomManager.getRoom(roomId);
-      if (!room || !room.receiver) {
-        socket.emit('error', { message: 'Room not ready for offer.' });
-        return;
-      }
-      io.to(room.receiver).emit('webrtc-offer', { offer, roomId });
+      handleOffer(socket, payload, io, roomManager, logger);
     });
 
-    socket.on('webrtc-answer', ({ answer, roomId } = {}) => {
+    socket.on('webrtc-answer', (payload = {}) => {
       if (!checkRateLimit(socket.id, 'webrtc-answer')) {
         socket.emit('error', { message: 'Too many requests. Please slow down.' });
         return;
       }
-      if (!roomId || typeof roomId !== 'string') {
-        socket.emit('error', { message: 'answer and roomId are required.' });
-        return;
-      }
-      if (!isValidSdp(answer)) {
-        socket.emit('error', { message: 'Invalid answer format.' });
-        return;
-      }
-      const room = roomManager.getRoom(roomId);
-      if (!room) {
-        socket.emit('error', { message: 'Room not found.' });
-        return;
-      }
-      io.to(room.sender).emit('webrtc-answer', { answer, roomId });
+      handleAnswer(socket, payload, io, roomManager, logger);
     });
 
-    socket.on('ice-candidate', ({ candidate, roomId } = {}) => {
+    socket.on('ice-candidate', (payload = {}) => {
       if (!checkRateLimit(socket.id, 'ice-candidate')) return; // silently drop
-      if (!roomId) return;
-      const room = roomManager.getRoom(roomId);
-      if (!room) return;
-      const targetId = room.sender === socket.id ? room.receiver : room.sender;
-      if (targetId) io.to(targetId).emit('ice-candidate', { candidate, roomId });
+      handleIceCandidate(socket, payload, io, roomManager);
     });
 
     // ─────────────────────────────────────────────
     // Disconnect / cleanup
     // ─────────────────────────────────────────────
     socket.on('disconnect', () => {
-      if (isDev) console.log(`[-] Disconnected: ${socket.id}`);
+      logger.debug(`[-] Disconnected: ${socket.id}`);
       socketRateLimits.delete(socket.id);
       const removed = roomManager.removeSocketFromRoom(socket.id);
       if (removed && removed.otherSocketId) {

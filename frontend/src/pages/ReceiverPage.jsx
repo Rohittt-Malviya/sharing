@@ -6,10 +6,12 @@ import { chunksToBlob } from '../utils/fileUtils'
 import { importKey, decryptData } from '../utils/crypto'
 import AlertBanner from '../components/AlertBanner'
 import TransferProgress from '../components/TransferProgress'
+import { useToast } from '../hooks/useToast'
 
 export default function ReceiverPage() {
   const { roomId: paramRoomId } = useParams()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [step, setStep] = useState(paramRoomId ? 'connecting' : 'join')
   const [manualCode, setManualCode] = useState('')
@@ -78,6 +80,7 @@ export default function ReceiverPage() {
       } catch (err) {
         console.error('[Receiver] Failed to decrypt chunk:', err)
         setError('Failed to decrypt received data')
+        toast.error('Failed to decrypt received data')
         setStep('error')
       }
     }
@@ -128,9 +131,11 @@ export default function ReceiverPage() {
       setDownloadUrl(url)
       setProgress(100)
       setStep('done')
+      toast.success('File received successfully!')
     } catch (err) {
       console.error('[Receiver] Failed to finalize transfer:', err)
       setError('Failed to save file')
+      toast.error('Failed to save received file')
       setStep('error')
     }
   }
@@ -174,7 +179,9 @@ export default function ReceiverPage() {
         socket.emit('webrtc-answer', { answer, roomId: rid })
       } catch (err) {
         console.error('[Receiver] Error handling offer:', err)
-        setError('Failed to establish connection: ' + err.message)
+        const msg = 'Failed to establish connection: ' + err.message
+        setError(msg)
+        toast.error(msg)
         setStep('error')
       }
     }
@@ -185,22 +192,29 @@ export default function ReceiverPage() {
     }
 
     const onRoomNotFound = ({ message }) => {
-      setError(message || 'Room not found')
+      const msg = message || 'Room not found'
+      setError(msg)
+      toast.error(msg)
       setStep('error')
     }
 
     const onRoomFull = ({ message }) => {
-      setError(message || 'Room is full')
+      const msg = message || 'Room is full'
+      setError(msg)
+      toast.error(msg)
       setStep('error')
     }
 
     const onPeerDisconnected = () => {
-      setError('Sender disconnected')
+      const msg = 'Sender disconnected'
+      setError(msg)
+      toast.warning(msg)
       setStep((s) => (s !== 'done' ? 'error' : s))
     }
 
     const onError = ({ message }) => {
       setError(message)
+      toast.error(message)
       setStep('error')
     }
 
@@ -239,7 +253,9 @@ export default function ReceiverPage() {
       socket.emit('join-room', { roomId: rid })
       setStep('connecting')
     } catch (err) {
-      setError('Failed to connect: ' + err.message)
+      const msg = 'Failed to connect: ' + err.message
+      setError(msg)
+      toast.error(msg)
     }
   }
 
