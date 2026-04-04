@@ -12,6 +12,16 @@ const PORT = process.env.PORT || 4000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Warn in production when FRONTEND_URL is still the localhost default — this
+// causes every deployed frontend to be rejected by CORS.
+if (!isDev && FRONTEND_URL === 'http://localhost:5173') {
+  console.error(
+    '[Server] WARNING: FRONTEND_URL is not set. ' +
+    'CORS will only allow http://localhost:5173. ' +
+    'Set FRONTEND_URL to your deployed frontend origin (e.g. https://your-app.example.com).'
+  );
+}
+
 const app = express();
 app.use(cors({ origin: FRONTEND_URL, methods: ['GET', 'POST'] }));
 app.use(express.json());

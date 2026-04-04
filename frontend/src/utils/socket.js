@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL =
+export const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   import.meta.env.VITE_BACKEND_URL ||
   'http://localhost:4000';
@@ -62,7 +62,7 @@ export function waitForSocketConnection(timeoutMs = 5000) {
 
     const timer = setTimeout(() => {
       sock.off('connect', onConnect);
-      reject(new Error('Socket connection timeout'));
+      reject(new Error(`Socket connection timeout — make sure the backend is running at ${SOCKET_URL}`));
     }, timeoutMs);
 
     const onConnect = () => {
