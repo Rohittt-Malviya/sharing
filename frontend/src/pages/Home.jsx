@@ -60,9 +60,9 @@ export default function Home() {
 
   const handleFileSelect = (file) => {
     if (!file) return
-    const MAX = 500 * 1024 * 1024
+    const MAX = 2 * 1024 * 1024 * 1024
     if (file.size > MAX) {
-      setError('File size exceeds 500 MB limit.')
+      setError('File size exceeds 2 GB limit.')
       return
     }
     setError('')
@@ -154,7 +154,7 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-base font-semibold text-white">Send a File</h2>
-                <p className="text-xs text-slate-500">Up to 500 MB · Direct P2P</p>
+                <p className="text-xs text-slate-500">Up to 2 GB · Direct P2P</p>
               </div>
             </div>
 

@@ -65,18 +65,25 @@ export default function ReceiverPage() {
 
       try {
         const meta = metadataRef.current
+        if (!meta.encryptionKey) {
+          throw new Error('Missing encryption key in metadata')
+        }
         const key = await importKey(meta.encryptionKey)
         const decrypted = await decryptData(key, data)
         chunksRef.current.push(decrypted)
         receivedBytesRef.current += decrypted.byteLength
 
         const elapsed = (Date.now() - startTimeRef.current) / 1000
-        const currentSpeed = receivedBytesRef.current / elapsed
-        const remaining = (meta.size - receivedBytesRef.current) / currentSpeed
+        if (elapsed > 0) {
+          const currentSpeed = receivedBytesRef.current / elapsed
+          const remaining = (meta.size - receivedBytesRef.current) / currentSpeed
 
-        setProgress(Math.round((receivedBytesRef.current / meta.size) * 100))
-        setSpeed(currentSpeed)
-        setEta(remaining)
+          setProgress(Math.round((receivedBytesRef.current / meta.size) * 100))
+          setSpeed(currentSpeed)
+          setEta(remaining)
+        } else {
+          setProgress(Math.round((receivedBytesRef.current / meta.size) * 100))
+        }
       } catch (err) {
         console.error('[Receiver] Failed to decrypt chunk:', err)
         setError('Failed to decrypt received data')
@@ -232,6 +239,8 @@ export default function ReceiverPage() {
       socket.off('room-full', onRoomFull)
       socket.off('peer-disconnected', onPeerDisconnected)
       socket.off('error', onError)
+      dcRef.current?.close()
+      pcRef.current?.close()
     }
   // createAnswer and addIceCandidate are stable useCallback refs; paramRoomId is
   // fixed for the component's lifetime (React Router won't remount on same route).

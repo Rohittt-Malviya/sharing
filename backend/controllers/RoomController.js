@@ -50,13 +50,16 @@ function handleJoinRoom(socket, payload, io, roomManager, logger) {
 
   // Support 6-char short codes: resolve to full roomId
   let resolvedRoomId = normalised;
-  if (normalised.length !== 12) {
+  if (normalised.length === 6) {
     const found = roomManager.getRoomByShortCode(normalised.toUpperCase());
     if (!found) {
       socket.emit('room-not-found', { message: 'Room not found or has expired.' });
       return;
     }
     resolvedRoomId = found.roomId;
+  } else if (normalised.length !== 12) {
+    socket.emit('room-not-found', { message: 'Room not found or has expired.' });
+    return;
   }
 
   const result = roomManager.joinRoom(socket.id, resolvedRoomId);
