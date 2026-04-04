@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { getSocket, waitForSocketConnection } from '../utils/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
@@ -16,6 +16,7 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2 GB
 
 export default function SenderPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const [step, setStep] = useState('select') // select | waiting | sending | done | error
   const [file, setFile] = useState(null)
@@ -32,6 +33,20 @@ export default function SenderPage() {
   const fileRef = useRef(null)
 
   const { createPeerConnection, createOffer, setRemoteAnswer, addIceCandidate } = useWebRTC()
+
+  // Pick up a file pre-selected on the Home page (passed via navigate state)
+  useEffect(() => {
+    const preselected = location.state?.file
+    if (preselected) {
+      if (preselected.size > MAX_FILE_SIZE) {
+        setError(`File is too large. Maximum allowed size is ${(MAX_FILE_SIZE / (1024 * 1024 * 1024)).toFixed(0)} GB.`)
+        return
+      }
+      setFile(preselected)
+      fileRef.current = preselected
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleFileSelect = (e) => {
     const f = e.target.files?.[0]
@@ -99,12 +114,16 @@ export default function SenderPage() {
         bytesSent += chunks[i].byteLength
 
         const elapsed = (Date.now() - startTime) / 1000
-        const currentSpeed = bytesSent / elapsed
-        const remaining = (currentFile.size - bytesSent) / currentSpeed
+        if (elapsed > 0) {
+          const currentSpeed = bytesSent / elapsed
+          const remaining = (currentFile.size - bytesSent) / currentSpeed
 
-        setProgress(Math.round((bytesSent / currentFile.size) * 100))
-        setSpeed(currentSpeed)
-        setEta(remaining)
+          setProgress(Math.round((bytesSent / currentFile.size) * 100))
+          setSpeed(currentSpeed)
+          setEta(remaining)
+        } else {
+          setProgress(Math.round((bytesSent / currentFile.size) * 100))
+        }
       }
 
       // Signal transfer complete
@@ -267,6 +286,8 @@ export default function SenderPage() {
       socket.off('peer-disconnected', onPeerDisconnected)
       socket.off('room-full', onRoomFull)
       clearTimeout(sendTimeoutRef.current)
+      dcRef.current?.close()
+      pcRef.current?.close()
     }
   // createPeerConnection, createOffer, setRemoteAnswer, addIceCandidate are stable
   // useCallback refs; startFileTransfer is intentionally captured at mount time.
