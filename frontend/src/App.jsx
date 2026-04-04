@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import Header from './components/Header'
 import LoadingSpinner from './components/LoadingSpinner'
 import ErrorBoundary from './components/ErrorBoundary'
+import Toast from './components/Toast'
+import { ToastProvider } from './contexts/ToastContext'
 
 const Home = lazy(() => import('./pages/Home'))
 const SenderPage = lazy(() => import('./pages/SenderPage'))
@@ -24,24 +26,27 @@ function NotFound() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Header />
-        <main className="pt-16">
-          <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-              <LoadingSpinner label="Loading…" />
-            </div>
-          }>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/send" element={<SenderPage />} />
-              <Route path="/join/:roomId" element={<ReceiverPage />} />
-              <Route path="/join" element={<ReceiverPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </main>
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <Header />
+          <main className="pt-16">
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center">
+                <LoadingSpinner label="Loading…" />
+              </div>
+            }>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/send" element={<SenderPage />} />
+                <Route path="/join/:roomId" element={<ReceiverPage />} />
+                <Route path="/join" element={<ReceiverPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <Toast />
+        </BrowserRouter>
+      </ToastProvider>
     </ErrorBoundary>
   )
 }

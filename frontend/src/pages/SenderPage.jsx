@@ -7,6 +7,7 @@ import { fileToChunks } from '../utils/fileUtils'
 import { generateKey, exportKey, encryptData } from '../utils/crypto'
 import AlertBanner from '../components/AlertBanner'
 import TransferProgress from '../components/TransferProgress'
+import { useToast } from '../hooks/useToast'
 
 const SEND_TIMEOUT_MS = 30000
 const HIGH_WATER_MARK = 1024 * 1024 // 1 MB
@@ -15,6 +16,7 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2 GB
 
 export default function SenderPage() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [step, setStep] = useState('select') // select | waiting | sending | done | error
   const [file, setFile] = useState(null)
   const [roomId, setRoomId] = useState(null)
@@ -51,7 +53,9 @@ export default function SenderPage() {
       const socket = await waitForSocketConnection()
       socket.emit('create-room')
     } catch (err) {
-      setError('Failed to connect to server: ' + err.message)
+      const msg = 'Failed to connect to server: ' + err.message
+      setError(msg)
+      toast.error(msg)
     }
   }
 
@@ -107,9 +111,12 @@ export default function SenderPage() {
       dc.send(JSON.stringify({ type: 'done' }))
       setProgress(100)
       setStep('done')
+      toast.success('File transferred successfully!')
     } catch (err) {
       console.error('[Sender] Transfer error:', err)
-      setError('File transfer failed: ' + err.message)
+      const msg = 'File transfer failed: ' + err.message
+      setError(msg)
+      toast.error(msg)
       setStep('error')
     }
   }
@@ -173,7 +180,9 @@ export default function SenderPage() {
 
         dc.onerror = (err) => {
           console.error('[DC] Data channel error:', err)
-          setError('Data channel error: transfer failed')
+          const msg = 'Data channel error: transfer failed'
+          setError(msg)
+          toast.error(msg)
           setStep('error')
         }
 
@@ -184,7 +193,9 @@ export default function SenderPage() {
         // Timeout if data channel never opens
         sendTimeoutRef.current = setTimeout(() => {
           console.error('[DC] Data channel open timeout')
-          setError('Connection timed out. Please try again.')
+          const msg = 'Connection timed out. Please try again.'
+          setError(msg)
+          toast.error(msg)
           setStep('error')
           pc.close()
         }, SEND_TIMEOUT_MS)
@@ -193,7 +204,9 @@ export default function SenderPage() {
         socket.emit('webrtc-offer', { offer, roomId: rid })
       } catch (err) {
         console.error('[Sender] Error creating offer:', err)
-        setError('Failed to initiate connection: ' + err.message)
+        const msg = 'Failed to initiate connection: ' + err.message
+        setError(msg)
+        toast.error(msg)
         setStep('error')
       }
     }
@@ -205,7 +218,9 @@ export default function SenderPage() {
         await setRemoteAnswer(pc, answer)
       } catch (err) {
         console.error('[Sender] Error setting remote answer:', err)
-        setError('Connection negotiation failed: ' + err.message)
+        const msg = 'Connection negotiation failed: ' + err.message
+        setError(msg)
+        toast.error(msg)
         setStep('error')
       }
     }
@@ -217,16 +232,21 @@ export default function SenderPage() {
 
     const onError = ({ message }) => {
       setError(message)
+      toast.error(message)
       setStep('error')
     }
 
     const onPeerDisconnected = () => {
-      setError('The receiver has disconnected.')
+      const msg = 'The receiver has disconnected.'
+      setError(msg)
+      toast.warning(msg)
       setStep((s) => (s !== 'done' ? 'error' : s))
     }
 
     const onRoomFull = ({ message }) => {
-      setError(message || 'Room is already full.')
+      const msg = message || 'Room is already full.'
+      setError(msg)
+      toast.error(msg)
       setStep('error')
     }
 
