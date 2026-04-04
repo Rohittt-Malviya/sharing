@@ -156,11 +156,23 @@ export default function ReceiverPage() {
 
   useEffect(() => {
     const socket = getSocket()
+    let cancelled = false
 
-    // Create peer connection immediately if we already have a roomId (URL param)
+    // Create peer connection immediately if we already have a roomId (URL param),
+    // but wait for the socket to actually connect before emitting join-room so that
+    // a backend-unreachable situation surfaces as an error instead of an infinite spinner.
     if (paramRoomId) {
       initPeerConnection(paramRoomId, socket)
-      socket.emit('join-room', { roomId: paramRoomId })
+      waitForSocketConnection()
+        .then((connectedSocket) => {
+          if (!cancelled) connectedSocket.emit('join-room', { roomId: paramRoomId })
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setError('Failed to connect to server: ' + err.message)
+            setStep('error')
+          }
+        })
     }
 
     const onOffer = async ({ offer, roomId: rid }) => {
@@ -212,6 +224,7 @@ export default function ReceiverPage() {
     socket.on('error', onError)
 
     return () => {
+      cancelled = true
       socket.off('webrtc-offer', onOffer)
       socket.off('ice-candidate', onIceCandidate)
       socket.off('room-not-found', onRoomNotFound)
