@@ -86,7 +86,10 @@ export default function SenderPage() {
       const key = await generateKey()
       const exportedKey = await exportKey(key)
 
-      // Load all chunks first so we can compute the SHA-256 hash before sending metadata
+      // Load all chunks first so we can compute the SHA-256 hash before sending metadata.
+      // Note: Web Crypto's digest() requires the full buffer at once (no streaming API),
+      // and fileToChunks already holds every chunk in memory, so concatenation here
+      // adds no additional peak-memory cost.
       const chunks = await fileToChunks(currentFile)
       const fileHash = await hashBuffer(concatenateBuffers(chunks))
 

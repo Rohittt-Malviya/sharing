@@ -145,6 +145,8 @@ export default function ReceiverPage() {
 
       // SHA-256 integrity check: compare received plaintext against the hash
       // the sender included in the metadata message.
+      // Note: Web Crypto's digest() requires the full buffer; chunks are already
+      // all in memory here so concatenation adds no extra peak-memory cost.
       if (meta.fileHash) {
         const receivedHash = await hashBuffer(concatenateBuffers(chunksRef.current))
         if (receivedHash !== meta.fileHash) {
