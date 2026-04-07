@@ -104,7 +104,9 @@ npm run build          # production build → dist/
 
 1. Import repo into [vercel.com](https://vercel.com)
 2. Set root directory to `frontend`
-3. Add environment variable: `VITE_BACKEND_URL=https://your-backend.onrender.com`
+3. Add environment variables:
+   - `VITE_BACKEND_URL=https://your-backend.onrender.com`
+   - `VITE_SOCKET_URL=https://your-backend.onrender.com`
 4. Deploy
 
 ### Backend → Render / Railway
@@ -114,6 +116,7 @@ npm run build          # production build → dist/
 3. Add environment variables:
    - `PORT=4000`
    - `FRONTEND_URL=https://your-frontend.vercel.app`
+     (comma-separated for multiple origins, e.g. `https://your-frontend.vercel.app,http://localhost:5173`)
 4. Deploy
 
 ---

@@ -9,21 +9,29 @@ const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 
 const PORT = process.env.PORT || 4000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const isDev = process.env.NODE_ENV !== 'production';
+
+// FRONTEND_URL may contain a comma-separated list of allowed origins so that
+// multiple deployments (e.g. local dev + staging + production) can be
+// supported without changing code.  Example:
+//   FRONTEND_URL=https://sharing-hhhe.onrender.com,http://localhost:5173
+const rawFrontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+const allowedOrigins = rawFrontendUrl.split(',').map((origin) => origin.trim()).filter(Boolean);
 
 // Warn in production when FRONTEND_URL is still the localhost default — this
 // causes every deployed frontend to be rejected by CORS.
-if (!isDev && FRONTEND_URL === 'http://localhost:5173') {
+if (!isDev && allowedOrigins.length === 1 && allowedOrigins[0] === 'http://localhost:5173') {
   console.error(
-    '[Server] WARNING: FRONTEND_URL is not set. ' +
+    '[Server] WARNING: FRONTEND_URL is not set or is still localhost. ' +
     'CORS will only allow http://localhost:5173. ' +
-    'Set FRONTEND_URL to your deployed frontend origin (e.g. https://your-app.example.com).'
+    'Set FRONTEND_URL to your deployed frontend origin(s), e.g.:\n' +
+    '  FRONTEND_URL=https://your-app.example.com\n' +
+    '  FRONTEND_URL=https://your-app.example.com,http://localhost:5173'
   );
 }
 
 const app = express();
-app.use(cors({ origin: FRONTEND_URL, methods: ['GET', 'POST'] }));
+app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST'] }));
 app.use(express.json());
 
 // Dev-only request logging middleware
@@ -43,7 +51,7 @@ app.use(errorHandler);
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: FRONTEND_URL, methods: ['GET', 'POST'] },
+  cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
   maxHttpBufferSize: 1e8, // 100 MB (not used for file data, just signaling)
   transports: ['websocket', 'polling'],
 });
@@ -53,7 +61,7 @@ registerSocketHandlers(io, roomManager);
 server.listen(PORT, () => {
   if (isDev) {
     logger.info(`\n🚀 Server running on http://localhost:${PORT}`);
-    logger.info(`   Accepting connections from: ${FRONTEND_URL}\n`);
+    logger.info(`   Accepting connections from: ${allowedOrigins.join(', ')}\n`);
   }
 });
 
