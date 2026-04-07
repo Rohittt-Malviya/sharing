@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { getSocket, waitForSocketConnection } from '../utils/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
-import { fileToChunks } from '../utils/fileUtils'
-import { generateKey, exportKey, encryptData } from '../utils/crypto'
+import { fileToChunks, concatenateBuffers, formatBytes } from '../utils/fileUtils'
+import { generateKey, exportKey, encryptData, hashBuffer } from '../utils/crypto'
 import AlertBanner from '../components/AlertBanner'
 import TransferProgress from '../components/TransferProgress'
 import { useToast } from '../hooks/useToast'
@@ -86,16 +86,23 @@ export default function SenderPage() {
       const key = await generateKey()
       const exportedKey = await exportKey(key)
 
-      // Send file metadata
+      // Load all chunks first so we can compute the SHA-256 hash before sending metadata.
+      // Note: Web Crypto's digest() requires the full buffer at once (no streaming API),
+      // and fileToChunks already holds every chunk in memory, so concatenation here
+      // adds no additional peak-memory cost.
+      const chunks = await fileToChunks(currentFile)
+      const fileHash = await hashBuffer(concatenateBuffers(chunks))
+
+      // Send file metadata (including hash for integrity verification on receiver)
       dc.send(JSON.stringify({
         type: 'metadata',
         name: currentFile.name,
         size: currentFile.size,
         mimeType: currentFile.type || 'application/octet-stream',
         encryptionKey: exportedKey,
+        fileHash,
       }))
 
-      const chunks = await fileToChunks(currentFile)
       const totalChunks = chunks.length
       let bytesSent = 0
       const startTime = Date.now()
@@ -305,7 +312,7 @@ export default function SenderPage() {
             <label className="cursor-pointer flex flex-col items-center justify-center border-2 border-dashed border-white/20 rounded-2xl p-10 hover:border-sky-500/50 transition-colors">
               <span className="text-4xl mb-3">📁</span>
               <span className="text-slate-300">{file ? file.name : 'Click to select a file'}</span>
-              {file && <span className="text-slate-500 text-sm mt-1">{(file.size / 1024).toFixed(1)} KB</span>}
+              {file && <span className="text-slate-500 text-sm mt-1">{formatBytes(file.size)}</span>}
               <input type="file" className="hidden" onChange={handleFileSelect} />
             </label>
             {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}

@@ -18,18 +18,24 @@
  *  error                → backend → requester          payload: { message }
  */
 
+const crypto = require('crypto');
+
 const ROOM_TIMEOUT_MS = parseInt(process.env.ROOM_TIMEOUT_MS || '300000', 10); // 5 min
 const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || '10000', 10);
 
 const rooms = new Map(); // roomId → { sender, receiver, shortCode, createdAt, timer }
 const shortCodes = new Set(); // active short codes for O(1) collision detection
 
-/** Generate a random alphanumeric string of given length */
+/**
+ * Generate a cryptographically random alphanumeric string of given length.
+ * Uses only unambiguous characters (no 0/O, 1/I/L).
+ * crypto.randomInt(n) returns an unbiased integer in [0, n), so no modulo bias.
+ */
 function randomString(len) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let out = '';
   for (let i = 0; i < len; i++) {
-    out += chars[Math.floor(Math.random() * chars.length)];
+    out += chars[crypto.randomInt(chars.length)];
   }
   return out;
 }

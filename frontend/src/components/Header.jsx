@@ -22,31 +22,6 @@ export default function Header() {
               Share<span style={{ color: '#00D9FF' }}>Drop</span>
             </span>
           </button>
-
-          {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-6">
-            {['Features', 'Security', 'Pricing'].map((item) => (
-              <button
-                key={item}
-                className="text-slate-400 hover:text-white text-sm font-medium transition-colors duration-200"
-                onClick={() => {}}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
-                type="button"
-              >
-                {item}
-              </button>
-            ))}
-          </nav>
-
-          {/* Auth Buttons */}
-          <div className="flex items-center gap-2">
-            <button className="btn-outline-neon text-sm py-2 px-4 hidden sm:flex">
-              Log in
-            </button>
-            <button className="btn-neon text-sm py-2 px-4">
-              Sign Up
-            </button>
-          </div>
         </div>
       </div>
     </header>

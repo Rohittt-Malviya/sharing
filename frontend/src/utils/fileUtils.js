@@ -32,6 +32,22 @@ export function chunksToBlob(chunks, mimeType = 'application/octet-stream') {
 }
 
 /**
+ * Concatenate an array of ArrayBuffers into a single ArrayBuffer.
+ * @param {ArrayBuffer[]} buffers
+ * @returns {ArrayBuffer}
+ */
+export function concatenateBuffers(buffers) {
+  const totalLength = buffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const buf of buffers) {
+    result.set(new Uint8Array(buf), offset);
+    offset += buf.byteLength;
+  }
+  return result.buffer;
+}
+
+/**
  * Format bytes to human-readable string
  */
 export function formatBytes(bytes) {
