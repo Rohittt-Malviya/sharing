@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getSocket, waitForSocketConnection } from '../utils/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
-import { chunksToBlob } from '../utils/fileUtils'
-import { importKey, decryptData } from '../utils/crypto'
+import { chunksToBlob, concatenateBuffers } from '../utils/fileUtils'
+import { importKey, decryptData, hashBuffer } from '../utils/crypto'
 import AlertBanner from '../components/AlertBanner'
 import TransferProgress from '../components/TransferProgress'
 import { useToast } from '../hooks/useToast'
@@ -30,6 +30,10 @@ export default function ReceiverPage() {
   const metadataRef = useRef(null)
   const receivedBytesRef = useRef(0)
   const startTimeRef = useRef(null)
+  // Cache the imported CryptoKey so it is imported only once per transfer
+  const cryptoKeyRef = useRef(null)
+  // Track the object URL so it can be revoked when the component unmounts
+  const downloadUrlRef = useRef(null)
 
   const { createPeerConnection, createAnswer, addIceCandidate } = useWebRTC()
 
@@ -49,6 +53,7 @@ export default function ReceiverPage() {
           chunksRef.current = []
           receivedBytesRef.current = 0
           startTimeRef.current = Date.now()
+          cryptoKeyRef.current = null // reset key cache for new transfer
           setStep('receiving')
         } else if (msg.type === 'done') {
           await finalizeTransfer()
@@ -68,8 +73,11 @@ export default function ReceiverPage() {
         if (!meta.encryptionKey) {
           throw new Error('Missing encryption key in metadata')
         }
-        const key = await importKey(meta.encryptionKey)
-        const decrypted = await decryptData(key, data)
+        // Import the key only once per transfer; reuse cached value for every chunk
+        if (!cryptoKeyRef.current) {
+          cryptoKeyRef.current = await importKey(meta.encryptionKey)
+        }
+        const decrypted = await decryptData(cryptoKeyRef.current, data)
         chunksRef.current.push(decrypted)
         receivedBytesRef.current += decrypted.byteLength
 
@@ -134,15 +142,27 @@ export default function ReceiverPage() {
     try {
       const meta = metadataRef.current
       const blob = chunksToBlob(chunksRef.current, meta.mimeType)
+
+      // SHA-256 integrity check: compare received plaintext against the hash
+      // the sender included in the metadata message.
+      if (meta.fileHash) {
+        const receivedHash = await hashBuffer(concatenateBuffers(chunksRef.current))
+        if (receivedHash !== meta.fileHash) {
+          throw new Error('File integrity check failed: SHA-256 hash mismatch')
+        }
+      }
+
       const url = URL.createObjectURL(blob)
+      downloadUrlRef.current = url
       setDownloadUrl(url)
       setProgress(100)
       setStep('done')
       toast.success('File received successfully!')
     } catch (err) {
       console.error('[Receiver] Failed to finalize transfer:', err)
-      setError('Failed to save file')
-      toast.error('Failed to save received file')
+      const msg = err.message.includes('integrity') ? err.message : 'Failed to save file'
+      setError(msg)
+      toast.error(msg)
       setStep('error')
     }
   }
@@ -254,6 +274,10 @@ export default function ReceiverPage() {
       socket.off('error', onError)
       dcRef.current?.close()
       pcRef.current?.close()
+      // Revoke the object URL to avoid memory leaks
+      if (downloadUrlRef.current) {
+        URL.revokeObjectURL(downloadUrlRef.current)
+      }
     }
   // createAnswer and addIceCandidate are stable useCallback refs; paramRoomId is
   // fixed for the component's lifetime (React Router won't remount on same route).
