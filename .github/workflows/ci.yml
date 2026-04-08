@@ -11,6 +11,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Minimal, least-privilege token permissions for every job.
+# Individual jobs can override with a narrower set if needed.
+permissions:
+  contents: read
+
 jobs:
   # ── Backend job ──────────────────────────────────────────────────────────────
   backend:

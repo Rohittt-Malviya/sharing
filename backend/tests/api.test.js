@@ -79,6 +79,9 @@ function httpGet(path, reqHeaders = {}) {
 
 let serverProcess;
 
+const TEST_RATE_LIMIT_MAX = 5; // small limit so the test only fires 6 requests
+const TEST_RATE_LIMIT_WINDOW_MS = 10_000; // 10 s window
+
 before(async () => {
   serverProcess = spawn(
     process.execPath, // use the same node binary
@@ -89,6 +92,8 @@ before(async () => {
         PORT: String(TEST_PORT),
         NODE_ENV: 'test',
         FRONTEND_URL: 'http://localhost:5173',
+        RATE_LIMIT_MAX: String(TEST_RATE_LIMIT_MAX),
+        RATE_LIMIT_WINDOW_MS: String(TEST_RATE_LIMIT_WINDOW_MS),
       },
       stdio: 'pipe',
     }
@@ -185,11 +190,9 @@ describe('CORS', () => {
 
 describe('Rate limiting', () => {
   it('returns 429 after exceeding the request limit', async () => {
-    // The default limit is 200 req/min; use a targeted burst to trigger 429.
-    // We fire 201 sequential requests to the same IP within the same window.
-    // This is intentionally slow but avoids flakiness from parallelism.
+    // Fire TEST_RATE_LIMIT_MAX + 1 requests; the last one must be rejected.
     let last;
-    for (let i = 0; i < 201; i++) {
+    for (let i = 0; i < TEST_RATE_LIMIT_MAX + 1; i++) {
       last = await httpGet('/health');
       if (last.statusCode === 429) break;
     }

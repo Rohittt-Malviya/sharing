@@ -24,7 +24,7 @@ function rateLimit({ windowMs = 60_000, max = 100, message } = {}) {
 
   // Periodically evict stale entries to prevent unbounded memory growth.
   // The interval is unref'd so it does not keep the process alive on shutdown.
-  const cleanupInterval = setInterval(() => {
+  setInterval(() => {
     const now = Date.now();
     for (const [ip, entry] of store.entries()) {
       if (now - entry.windowStart >= windowMs) {
@@ -32,10 +32,6 @@ function rateLimit({ windowMs = 60_000, max = 100, message } = {}) {
       }
     }
   }, windowMs).unref();
-
-  // Allow tests / graceful shutdown to clean up
-  rateLimit._intervals = rateLimit._intervals || [];
-  rateLimit._intervals.push(cleanupInterval);
 
   return function rateLimitMiddleware(req, res, next) {
     const ip =

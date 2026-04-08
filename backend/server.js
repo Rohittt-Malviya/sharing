@@ -41,7 +41,10 @@ app.use(securityHeaders(isDev));
 
 // Rate limiting – applied to all HTTP routes (generous limit; socket events are
 // rate-limited separately in the socket handler)
-app.use(rateLimit({ windowMs: 60_000, max: 200 }));
+app.use(rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 60_000,
+  max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 200,
+}));
 
 // Dev-only request logging middleware
 if (isDev) {
