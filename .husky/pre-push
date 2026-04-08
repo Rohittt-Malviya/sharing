@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-push hook — runs the full test suite before pushing to remote.
+# Install: npx husky  (from the repo root after `npm install`)
+
+set -e
+
+echo "🧪  Running backend tests…"
+(cd backend && npm test)
+
+echo "🧪  Running frontend tests…"
+(cd frontend && npm test)
+
+echo "✅  All tests passed — push allowed."

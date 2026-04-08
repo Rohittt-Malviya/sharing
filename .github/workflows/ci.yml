@@ -1,0 +1,268 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same branch/PR to save CI minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Backend job ──────────────────────────────────────────────────────────────
+  backend:
+    name: Backend — lint · test · build check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit (backend)
+        run: npm audit --audit-level=high
+
+      - name: Syntax check all JS files
+        run: |
+          find . -name "*.js" \
+            -not -path "*/node_modules/*" \
+            -not -path "*/dist/*" \
+            | xargs -I{} node --check {}
+
+      - name: Run backend tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+  # ── Frontend job ─────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend — audit · lint · test · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit (production dependencies only)
+        # Dev-only tools (vite/esbuild dev server) are excluded from audit since
+        # they are not shipped to production and their known CVEs only affect the
+        # local development server.
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_BACKEND_URL: http://localhost:4000
+          VITE_SOCKET_URL: http://localhost:4000
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+
+  # ── Security checks ───────────────────────────────────────────────────────────
+  security:
+    name: Security — secrets scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ensure no .env files are committed
+        run: |
+          if find . \
+               -name ".env" \
+               -not -name ".env.example" \
+               -not -name ".env.production" \
+               -not -path "*/node_modules/*" \
+             | grep -q .; then
+            echo "❌  ERROR: .env file(s) found in repository — remove them immediately!"
+            find . -name ".env" -not -name ".env.example" -not -name ".env.production" -not -path "*/node_modules/*"
+            exit 1
+          fi
+          echo "✅  No .env files committed."
+
+      - name: Scan for hardcoded secrets (basic patterns)
+        run: |
+          # Fail fast if common secret patterns appear in source files.
+          # This is a lightweight complementary check; a dedicated tool such as
+          # truffleHog or gitleaks should be added for thorough scanning.
+          PATTERNS=(
+            'password\s*=\s*["\x27][^"\x27]{6,}'
+            'secret\s*=\s*["\x27][^"\x27]{6,}'
+            'api_key\s*=\s*["\x27][^"\x27]{6,}'
+            'private_key\s*=\s*["\x27]-----BEGIN'
+          )
+          FOUND=0
+          for PATTERN in "${PATTERNS[@]}"; do
+            if grep -rEi \
+                 --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" \
+                 --exclude-dir=node_modules --exclude-dir=dist \
+                 "$PATTERN" .; then
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo "❌  Potential hardcoded secret found — please review the output above."
+            exit 1
+          fi
+          echo "✅  No hardcoded secrets detected."
+
+  # ── Integration tests ─────────────────────────────────────────────────────────
+  integration:
+    name: Integration — backend connectivity & CORS
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Start backend server
+        run: node server.js &
+        working-directory: backend
+        env:
+          PORT: 4000
+          NODE_ENV: test
+          FRONTEND_URL: http://localhost:5173
+
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend…"
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:4000/health > /dev/null 2>&1; then
+              echo "✅  Backend is up."
+              break
+            fi
+            if [ "$i" -eq 15 ]; then
+              echo "❌  Backend did not start in time."
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Test /health endpoint
+        run: |
+          RESPONSE=$(curl -sf http://localhost:4000/health)
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q '"status":"ok"' || \
+            { echo "❌  /health did not return {status:ok}"; exit 1; }
+          echo "✅  /health check passed."
+
+      - name: Validate security headers
+        run: |
+          HEADERS=$(curl -sI http://localhost:4000/health)
+          echo "$HEADERS"
+          echo "$HEADERS" | grep -qi "x-content-type-options: nosniff" || \
+            { echo "❌  Missing X-Content-Type-Options header"; exit 1; }
+          echo "$HEADERS" | grep -qi "x-frame-options: DENY" || \
+            { echo "❌  Missing X-Frame-Options header"; exit 1; }
+          echo "$HEADERS" | grep -qi "content-security-policy:" || \
+            { echo "❌  Missing Content-Security-Policy header"; exit 1; }
+          echo "✅  Security headers present."
+
+      - name: Validate CORS — allowed origin is reflected
+        run: |
+          RESPONSE=$(curl -sI -H "Origin: http://localhost:5173" \
+            http://localhost:4000/health)
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -qi \
+            "access-control-allow-origin: http://localhost:5173" || \
+            { echo "❌  CORS: allowed origin not reflected"; exit 1; }
+          echo "✅  CORS origin check passed."
+
+      - name: Validate CORS — wildcard origin is NOT used
+        run: |
+          RESPONSE=$(curl -sI http://localhost:4000/health)
+          if echo "$RESPONSE" | grep -qi "access-control-allow-origin: \*"; then
+            echo "❌  CORS wildcard (*) origin detected — not allowed in production!"
+            exit 1
+          fi
+          echo "✅  No wildcard CORS origin."
+
+      - name: Validate CORS — arbitrary origin is rejected
+        run: |
+          RESPONSE=$(curl -sI -H "Origin: https://evil.example.com" \
+            http://localhost:4000/health)
+          echo "$RESPONSE"
+          if echo "$RESPONSE" | grep -qi \
+            "access-control-allow-origin: https://evil.example.com"; then
+            echo "❌  CORS: arbitrary origin was reflected — CORS is misconfigured!"
+            exit 1
+          fi
+          echo "✅  Arbitrary origin correctly rejected."
+
+  # ── Deployment safety ─────────────────────────────────────────────────────────
+  deploy-check:
+    name: Pre-deployment safety check
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, security, integration]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run deploy safety check
+        run: node scripts/deploy-safety-check.js
+        env:
+          NODE_ENV: production
+          # In a real deployment these would be real production values;
+          # here we use the example values to exercise the check script.
+          FRONTEND_URL: https://sharing.example.com
+          VITE_BACKEND_URL: https://api.sharing.example.com
+          VITE_SOCKET_URL: https://api.sharing.example.com

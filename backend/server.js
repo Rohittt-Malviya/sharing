@@ -7,6 +7,8 @@ const roomManager = require('./utils/roomManager');
 const { registerSocketHandlers } = require('./socket/socketHandler');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
+const securityHeaders = require('./middleware/helmet');
+const rateLimit = require('./middleware/rateLimit');
 
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -35,17 +37,11 @@ app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST'] }));
 app.use(express.json());
 
 // Security headers – applied to all HTTP responses
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // Only send HSTS over HTTPS (irrelevant locally but important in production)
-  if (!isDev) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
-  next();
-});
+app.use(securityHeaders(isDev));
+
+// Rate limiting – applied to all HTTP routes (generous limit; socket events are
+// rate-limited separately in the socket handler)
+app.use(rateLimit({ windowMs: 60_000, max: 200 }));
 
 // Dev-only request logging middleware
 if (isDev) {

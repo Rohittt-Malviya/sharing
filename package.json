@@ -1,0 +1,12 @@
+{
+  "name": "sharing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root package — manages Git hooks via Husky for local development.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.6"
+  }
+}
