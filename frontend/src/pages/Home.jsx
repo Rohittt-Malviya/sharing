@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AlertBanner from '../components/AlertBanner'
+import HeroSection from '../components/blocks/HeroSection'
 
 const FEATURES = [
   {
@@ -44,12 +45,6 @@ const FILE_TRANSFERS = [
   { name: 'database-backup.sql', size: '24 MB', speed: '38 MB/s', progress: 91, icon: '🗄️' },
 ]
 
-const SECURITY_FEATURES = [
-  { label: 'AES-256-GCM', icon: '🔐' },
-  { label: 'WebRTC P2P', icon: '🌐' },
-  { label: 'Zero Storage', icon: '🛡️' },
-  { label: 'TLS 1.3', icon: '🔒' },
-]
 
 export default function Home() {
   const navigate = useNavigate()
@@ -102,41 +97,8 @@ export default function Home() {
   return (
     <div className="min-h-screen animate-fade-in">
 
-      {/* ── Hero Section ── */}
-      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Background glow orbs */}
-        <div className="absolute top-20 left-1/4 w-72 h-72 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(0,217,255,0.08) 0%, transparent 70%)', filter: 'blur(40px)' }} />
-        <div className="absolute top-32 right-1/4 w-96 h-96 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(157,78,221,0.08) 0%, transparent 70%)', filter: 'blur(50px)' }} />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          {/* Pill badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 text-sm font-medium" style={{ background: 'rgba(0,217,255,0.08)', border: '1px solid rgba(0,217,255,0.2)', color: '#00D9FF' }}>
-            <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
-            Blazing-fast P2P file sharing
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-            Share Files{' '}
-            <span className="text-gradient-cyan">Seamlessly</span>
-            <br />& <span className="text-gradient-purple">Securely</span>
-          </h1>
-
-          <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-8 leading-relaxed">
-            Transfer files peer-to-peer in real-time. No uploads, no cloud storage, no sign-up.
-            End-to-end encrypted and completely private.
-          </p>
-
-          {/* Security badges */}
-          <div className="flex items-center justify-center gap-3 flex-wrap mb-12">
-            {SECURITY_FEATURES.map(({ label, icon }) => (
-              <span key={label} className="encryption-badge">
-                {icon} {label}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ── Hero Section (merged with animated BackgroundPaths) ── */}
+      <HeroSection onSendFile={(file) => { navigate('/send', { state: { file } }) }} />
 
       {/* ── Main Upload Area ── */}
       <section className="px-4 pb-20">
