@@ -1,4 +1,4 @@
-# ShareDrop – Peer-to-Peer File Sharing PWA
+# Driftshare – Peer-to-Peer File Sharing PWA
 
 A production-ready Progressive Web App for secure, peer-to-peer file sharing using WebRTC, built with React + Vite (frontend) and Node.js + Express + Socket.io (backend).
 
