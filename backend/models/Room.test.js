@@ -14,8 +14,8 @@ let roomManager;
 describe('roomManager', () => {
   beforeEach(() => {
     // Invalidate module cache so each test group starts with an empty rooms Map
-    delete require.cache[require.resolve('./roomManager')];
-    roomManager = require('./roomManager');
+    delete require.cache[require.resolve('./Room')];
+    roomManager = require('./Room');
   });
 
   // ─── randomString / createRoom ────────────────────────────────────────────

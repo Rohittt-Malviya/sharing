@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { getSocket, waitForSocketConnection } from '../utils/socket'
+import { getSocket, waitForSocketConnection } from '../services/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { fileToChunks, concatenateBuffers, formatBytes } from '../utils/fileUtils'
 import { generateKey, exportKey, encryptData, hashBuffer } from '../utils/crypto'

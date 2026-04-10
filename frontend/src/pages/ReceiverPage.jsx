@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getSocket, waitForSocketConnection } from '../utils/socket'
+import { getSocket, waitForSocketConnection } from '../services/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { chunksToBlob, concatenateBuffers } from '../utils/fileUtils'
 import { importKey, decryptData, hashBuffer } from '../utils/crypto'

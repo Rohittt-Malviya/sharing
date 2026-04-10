@@ -3,12 +3,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const roomManager = require('./utils/roomManager');
+const roomManager = require('./models/Room');
 const { registerSocketHandlers } = require('./socket/socketHandler');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const securityHeaders = require('./middleware/helmet');
 const rateLimit = require('./middleware/rateLimit');
+const routes = require('./routes');
 
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -54,8 +55,8 @@ if (isDev) {
   });
 }
 
-// Health check endpoint
-app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// HTTP routes
+app.use('/', routes);
 
 // Centralised error handler (must be after routes)
 app.use(errorHandler);
