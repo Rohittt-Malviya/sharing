@@ -50,7 +50,6 @@ function isValidRoomId(roomId) {
 function isValidIceCandidate(candidate) {
   if (candidate === null) return true; // null === end-of-candidates
   return (
-    candidate !== null &&
     typeof candidate === 'object' &&
     typeof candidate.candidate === 'string'
   );

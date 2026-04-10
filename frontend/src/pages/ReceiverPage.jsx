@@ -34,6 +34,10 @@ export default function ReceiverPage() {
   const cryptoKeyRef = useRef(null)
   // Track the object URL so it can be revoked when the component unmounts
   const downloadUrlRef = useRef(null)
+  // Track the resolved full room ID — updated once the server sends webrtc-offer
+  // with the canonical 12-char ID, overriding whatever the user typed (which may
+  // have been a 6-char short code that the backend resolves to a full ID).
+  const effectiveRoomIdRef = useRef(paramRoomId || null)
 
   const { createPeerConnection, createAnswer, addIceCandidate } = useWebRTC()
 
@@ -172,8 +176,13 @@ export default function ReceiverPage() {
   // ── Peer connection factory ─────────────────────────────────────────────
 
   const initPeerConnection = (rid, socket) => {
+    effectiveRoomIdRef.current = rid
     const pc = createPeerConnection(rid, (candidate) => {
-      socket.emit('ice-candidate', { candidate, roomId: rid })
+      // Always use the effective (resolved) room ID — if the user joined with a
+      // 6-char short code the backend resolves it to a 12-char ID and sends that
+      // in the webrtc-offer payload; we update effectiveRoomIdRef there so that
+      // ICE candidates are routed with the correct ID.
+      socket.emit('ice-candidate', { candidate, roomId: effectiveRoomIdRef.current })
     })
     pcRef.current = pc
 
@@ -211,6 +220,9 @@ export default function ReceiverPage() {
 
     const onOffer = async ({ offer, roomId: rid }) => {
       try {
+        // The backend sends the canonical 12-char roomId in the offer; update the
+        // ref so all subsequent ICE candidates use the resolved ID, not a short code.
+        effectiveRoomIdRef.current = rid
         let pc = pcRef.current
         if (!pc) {
           // Fallback: create PC if not already created (e.g. late arrival)

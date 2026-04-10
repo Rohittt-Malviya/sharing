@@ -150,7 +150,7 @@ export default function SenderPage() {
   }
 
   const waitForBufferDrain = (dc) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (dc.bufferedAmount < HIGH_WATER_MARK) {
         resolve()
         return
@@ -159,15 +159,34 @@ export default function SenderPage() {
       if ('bufferedAmountLowThreshold' in dc) {
         // Preferred path: event-driven drain notification
         dc.bufferedAmountLowThreshold = LOW_WATER_MARK
+
         const onLow = () => {
+          dc.removeEventListener('close', onClose)
           dc.removeEventListener('bufferedamountlow', onLow)
           resolve()
         }
+        const onClose = () => {
+          dc.removeEventListener('bufferedamountlow', onLow)
+          dc.removeEventListener('close', onClose)
+          reject(new Error('Data channel closed while waiting for buffer to drain'))
+        }
         dc.addEventListener('bufferedamountlow', onLow)
+        dc.addEventListener('close', onClose)
       } else {
         // Fallback: polling with setTimeout
+        const onClose = () => {
+          dc.removeEventListener('close', onClose)
+          reject(new Error('Data channel closed while waiting for buffer to drain'))
+        }
+        dc.addEventListener('close', onClose)
+
         const poll = () => {
+          if (dc.readyState !== 'open') {
+            // onClose will handle rejection
+            return
+          }
           if (dc.bufferedAmount < HIGH_WATER_MARK) {
+            dc.removeEventListener('close', onClose)
             resolve()
           } else {
             setTimeout(poll, 50)
