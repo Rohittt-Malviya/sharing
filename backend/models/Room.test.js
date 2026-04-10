@@ -1,5 +1,5 @@
 /**
- * Tests for roomManager.js using Node's built-in test runner (node:test).
+ * Tests for Room.js using Node's built-in test runner (node:test).
  * Run with: npm test
  */
 
