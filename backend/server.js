@@ -3,12 +3,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const roomManager = require('./utils/roomManager');
+const roomManager = require('./models/Room');
 const { registerSocketHandlers } = require('./socket/socketHandler');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const securityHeaders = require('./middleware/helmet');
 const rateLimit = require('./middleware/rateLimit');
+const routes = require('./routes');
 
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.NODE_ENV !== 'production';
@@ -34,7 +35,7 @@ if (!isDev && allowedOrigins.length === 1 && allowedOrigins[0] === 'http://local
 
 const app = express();
 app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST'] }));
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 
 // Security headers – applied to all HTTP responses
 app.use(securityHeaders(isDev));
@@ -54,8 +55,8 @@ if (isDev) {
   });
 }
 
-// Health check endpoint
-app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+// HTTP routes
+app.use('/', routes);
 
 // Centralised error handler (must be after routes)
 app.use(errorHandler);
@@ -64,7 +65,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
-  maxHttpBufferSize: 1e8, // 100 MB (not used for file data, just signaling)
+  maxHttpBufferSize: 1e6, // 1 MB — signaling payloads (SDP/ICE) are < 4 KB; a generous upper bound prevents oversized-message DoS
   transports: ['websocket', 'polling'],
 });
 

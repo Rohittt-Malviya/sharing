@@ -34,11 +34,7 @@ function rateLimit({ windowMs = 60_000, max = 100, message } = {}) {
   }, windowMs).unref();
 
   return function rateLimitMiddleware(req, res, next) {
-    const ip =
-      req.ip ||
-      req.socket.remoteAddress ||
-      (req.headers['x-forwarded-for'] || '').split(',')[0].trim() ||
-      'unknown';
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
     const now = Date.now();
     const entry = store.get(ip);
