@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Upload, Shield, Zap, Lock } from 'lucide-react'
 import BackgroundPaths from '../ui/BackgroundPaths'
 import Button from '../ui/Button'
+import { validateFile } from '../../utils/fileValidation'
 
 const SECURITY_BADGES = [
   { label: 'AES-256-GCM', icon: Lock },
@@ -25,14 +26,17 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 }
 
-export default function HeroSection({ onSendFile }) {
+export default function HeroSection({ onSendFile, onError }) {
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
 
   const handleFileSelect = (file) => {
     if (!file) return
-    const MAX = 2 * 1024 * 1024 * 1024
-    if (file.size > MAX) return
+    const { valid, error: validationError } = validateFile(file)
+    if (!valid) {
+      if (onError) onError(validationError)
+      return
+    }
     if (onSendFile) {
       onSendFile(file)
     } else {

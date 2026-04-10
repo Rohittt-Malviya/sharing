@@ -5,6 +5,7 @@ import { getSocket, waitForSocketConnection } from '../utils/socket'
 import { useWebRTC } from '../hooks/useWebRTC'
 import { fileToChunks, concatenateBuffers, formatBytes } from '../utils/fileUtils'
 import { generateKey, exportKey, encryptData, hashBuffer } from '../utils/crypto'
+import { validateFile } from '../utils/fileValidation'
 import AlertBanner from '../components/AlertBanner'
 import TransferProgress from '../components/TransferProgress'
 import { useToast } from '../hooks/useToast'
@@ -12,7 +13,6 @@ import { useToast } from '../hooks/useToast'
 const SEND_TIMEOUT_MS = 30000
 const HIGH_WATER_MARK = 1024 * 1024 // 1 MB
 const LOW_WATER_MARK = 256 * 1024   // 256 KB
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2 GB
 
 export default function SenderPage() {
   const navigate = useNavigate()
@@ -38,8 +38,9 @@ export default function SenderPage() {
   useEffect(() => {
     const preselected = location.state?.file
     if (preselected) {
-      if (preselected.size > MAX_FILE_SIZE) {
-        setError(`File is too large. Maximum allowed size is ${(MAX_FILE_SIZE / (1024 * 1024 * 1024)).toFixed(0)} GB.`)
+      const { valid, error: validationError } = validateFile(preselected)
+      if (!valid) {
+        setError(validationError)
         return
       }
       setFile(preselected)
@@ -50,15 +51,16 @@ export default function SenderPage() {
 
   const handleFileSelect = (e) => {
     const f = e.target.files?.[0]
-    if (f) {
-      if (f.size > MAX_FILE_SIZE) {
-        setError(`File is too large. Maximum allowed size is ${(MAX_FILE_SIZE / (1024 * 1024 * 1024)).toFixed(0)} GB.`)
-        e.target.value = ''
-        return
-      }
-      setFile(f)
-      fileRef.current = f
+    if (!f) return
+    setError(null)
+    const { valid, error: validationError } = validateFile(f)
+    if (!valid) {
+      setError(validationError)
+      e.target.value = ''
+      return
     }
+    setFile(f)
+    fileRef.current = f
   }
 
   const handleStart = async () => {

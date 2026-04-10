@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AlertBanner from '../components/AlertBanner'
 import HeroSection from '../components/blocks/HeroSection'
+import { validateFile } from '../utils/fileValidation'
 
 const FEATURES = [
   {
@@ -55,9 +56,9 @@ export default function Home() {
 
   const handleFileSelect = (file) => {
     if (!file) return
-    const MAX = 2 * 1024 * 1024 * 1024
-    if (file.size > MAX) {
-      setError('File size exceeds 2 GB limit.')
+    const { valid, error: validationError } = validateFile(file)
+    if (!valid) {
+      setError(validationError)
       return
     }
     setError('')
@@ -98,7 +99,7 @@ export default function Home() {
     <div className="min-h-screen animate-fade-in">
 
       {/* ── Hero Section (merged with animated BackgroundPaths) ── */}
-      <HeroSection onSendFile={(file) => { navigate('/send', { state: { file } }) }} />
+      <HeroSection onSendFile={(file) => { navigate('/send', { state: { file } }) }} onError={setError} />
 
       {/* ── Main Upload Area ── */}
       <section className="px-4 pb-20">
