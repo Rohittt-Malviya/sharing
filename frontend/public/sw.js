@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sharedrop-v1';
+const CACHE_NAME = 'driftshare-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

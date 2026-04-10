@@ -379,7 +379,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
-              Why <span className="text-gradient-cyan">ShareDrop</span>?
+              Why <span className="text-gradient-cyan">Driftshare</span>?
             </h2>
             <p className="text-slate-400 text-base">Everything you need, nothing you don&apos;t</p>
           </div>
@@ -440,7 +440,7 @@ export default function Home() {
 
           <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-3">
             <p className="text-xs text-slate-700">
-              © 2024 ShareDrop. Open source under MIT License.
+              © 2024 Driftshare. Open source under MIT License.
             </p>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10b981' }} />

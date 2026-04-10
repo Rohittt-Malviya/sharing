@@ -1,6 +1,6 @@
 {
-  "name": "ShareDrop",
-  "short_name": "ShareDrop",
+  "name": "Driftshare",
+  "short_name": "Driftshare",
   "description": "Peer-to-peer file sharing using WebRTC",
   "start_url": "/",
   "display": "standalone",
