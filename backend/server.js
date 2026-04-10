@@ -35,7 +35,7 @@ if (!isDev && allowedOrigins.length === 1 && allowedOrigins[0] === 'http://local
 
 const app = express();
 app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST'] }));
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 
 // Security headers – applied to all HTTP responses
 app.use(securityHeaders(isDev));

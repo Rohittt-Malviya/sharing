@@ -76,6 +76,10 @@ export default function Home() {
   const onDragOver = (e) => { e.preventDefault(); setDragActive(true) }
   const onDragLeave = () => setDragActive(false)
 
+  // Room IDs are 6-char short codes or 12-char full IDs using the
+  // unambiguous alphabet: A-Z (minus I, L, O) + 2-9 (minus 0, 1).
+  const ROOM_ID_RE = /^[A-HJ-KM-NP-Z2-9]{6}$|^[A-HJ-KM-NP-Z2-9]{12}$/i
+
   const handleJoin = (e) => {
     e.preventDefault()
     const code = joinCode.trim().toUpperCase()
@@ -84,7 +88,11 @@ export default function Home() {
       try {
         const url = new URL(joinCode.trim())
         const parts = url.pathname.split('/')
-        const roomId = parts[parts.length - 1]
+        const roomId = parts[parts.length - 1].toUpperCase()
+        if (!ROOM_ID_RE.test(roomId)) {
+          setError('Invalid room code in URL. Expected a 6 or 12 character room code.')
+          return
+        }
         navigate(`/join/${roomId}`)
         return
       } catch {

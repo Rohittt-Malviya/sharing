@@ -33,6 +33,12 @@ function handleOffer(socket, payload, io, roomManager, logger) {
     return;
   }
 
+  // Only the designated sender may relay an offer.
+  if (room.sender !== socket.id) {
+    socket.emit('error', { message: 'Not authorized to send offer.' });
+    return;
+  }
+
   logger.debug(`[Signaling] Relaying offer from ${socket.id} to ${room.receiver}`);
   io.to(room.receiver).emit('webrtc-offer', { offer, roomId });
 }
@@ -64,6 +70,12 @@ function handleAnswer(socket, payload, io, roomManager, logger) {
     return;
   }
 
+  // Only the designated receiver may relay an answer.
+  if (room.receiver !== socket.id) {
+    socket.emit('error', { message: 'Not authorized to send answer.' });
+    return;
+  }
+
   logger.debug(`[Signaling] Relaying answer from ${socket.id} to ${room.sender}`);
   io.to(room.sender).emit('webrtc-answer', { answer, roomId });
 }
@@ -84,6 +96,9 @@ function handleIceCandidate(socket, payload, io, roomManager) {
 
   const room = roomManager.getRoom(roomId);
   if (!room) return;
+
+  // Only the two peers in this room may relay ICE candidates.
+  if (room.sender !== socket.id && room.receiver !== socket.id) return;
 
   const targetId = room.sender === socket.id ? room.receiver : room.sender;
   if (targetId) {
