@@ -24,18 +24,26 @@ const ROOM_TIMEOUT_MS = parseInt(process.env.ROOM_TIMEOUT_MS || '300000', 10); /
 const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || '10000', 10);
 
 const rooms = new Map(); // roomId → { sender, receiver, shortCode, createdAt, timer }
-const shortCodes = new Set(); // active short codes for O(1) collision detection
+
+// Reverse-index maps for O(1) lookups — kept in sync with `rooms` at all times.
+const shortCodeToRoomId = new Map(); // shortCode → roomId  (replaces the old shortCodes Set)
+const socketToRoomId = new Map();    // socketId  → roomId  (covers both sender and receiver)
 
 /**
  * Generate a cryptographically random alphanumeric string of given length.
  * Uses only unambiguous characters (no 0/O, 1/I/L).
- * crypto.randomInt(n) returns an unbiased integer in [0, n), so no modulo bias.
+ *
+ * All 32 characters means a single byte masked with 0x1f (31) covers the
+ * full alphabet with no modulo bias (256 / 32 = 8 exactly).  One call to
+ * crypto.randomBytes() is used for the whole string instead of `len`
+ * separate crypto.randomInt() calls.
  */
 function randomString(len) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // exactly 32 chars
+  const bytes = crypto.randomBytes(len);
   let out = '';
   for (let i = 0; i < len; i++) {
-    out += chars[crypto.randomInt(chars.length)];
+    out += chars[bytes[i] & 0x1f]; // 0x1f = 31 → maps [0,255] to [0,31], unbiased
   }
   return out;
 }
@@ -47,10 +55,10 @@ function uniqueRoomId() {
   return id;
 }
 
-/** Generate a short code (always uppercase) that does not collide with any active room */
+/** Generate a short code that does not collide with any active room */
 function uniqueShortCode() {
   let code;
-  do { code = randomString(6).toUpperCase(); } while (shortCodes.has(code));
+  do { code = randomString(6); } while (shortCodeToRoomId.has(code));
   return code;
 }
 
@@ -66,7 +74,13 @@ function createRoom(senderSocketId) {
   const shortCode = uniqueShortCode();
 
   const timer = setTimeout(() => {
-    shortCodes.delete(shortCode);
+    // Clean up all three maps on expiry.
+    shortCodeToRoomId.delete(shortCode);
+    const r = rooms.get(roomId);
+    if (r) {
+      socketToRoomId.delete(r.sender);
+      if (r.receiver) socketToRoomId.delete(r.receiver);
+    }
     rooms.delete(roomId);
   }, ROOM_TIMEOUT_MS);
 
@@ -80,7 +94,10 @@ function createRoom(senderSocketId) {
     createdAt: Date.now(),
     timer,
   });
-  shortCodes.add(shortCode);
+
+  // Maintain reverse indices
+  shortCodeToRoomId.set(shortCode, roomId);
+  socketToRoomId.set(senderSocketId, roomId);
 
   return { roomId, shortCode };
 }
@@ -99,6 +116,7 @@ function joinRoom(receiverSocketId, roomId) {
   if (room.sender === receiverSocketId) return { error: 'room-full', message: 'You cannot join your own room as a receiver.' };
 
   room.receiver = receiverSocketId;
+  socketToRoomId.set(receiverSocketId, roomId); // maintain reverse index
   return { room };
 }
 
@@ -106,34 +124,49 @@ function getRoom(roomId) {
   return rooms.get(roomId) || null;
 }
 
+/**
+ * O(1) lookup via the socketToRoomId index, then verify sender role.
+ */
 function getRoomBySender(socketId) {
-  for (const [roomId, room] of rooms.entries()) {
-    if (room.sender === socketId) return { roomId, room };
-  }
-  return null;
+  const roomId = socketToRoomId.get(socketId);
+  if (!roomId) return null;
+  const room = rooms.get(roomId);
+  if (!room || room.sender !== socketId) return null;
+  return { roomId, room };
 }
 
+/**
+ * O(1) lookup via the socketToRoomId index (covers both sender and receiver).
+ */
 function getRoomBySocket(socketId) {
-  for (const [roomId, room] of rooms.entries()) {
-    if (room.sender === socketId || room.receiver === socketId) return { roomId, room };
-  }
-  return null;
+  const roomId = socketToRoomId.get(socketId);
+  if (!roomId) return null;
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  return { roomId, room };
 }
 
+/**
+ * O(1) lookup via the shortCodeToRoomId index.
+ */
 function getRoomByShortCode(shortCode) {
   if (!shortCode || typeof shortCode !== 'string') return null;
   const normalised = shortCode.trim().toUpperCase();
-  for (const [roomId, room] of rooms.entries()) {
-    if (room.shortCode === normalised) return { roomId, room };
-  }
-  return null;
+  const roomId = shortCodeToRoomId.get(normalised);
+  if (!roomId) return null;
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  return { roomId, room };
 }
 
 function deleteRoom(roomId) {
   const room = rooms.get(roomId);
   if (room) {
     clearTimeout(room.timer);
-    shortCodes.delete(room.shortCode);
+    // Clean up all three maps atomically
+    shortCodeToRoomId.delete(room.shortCode);
+    socketToRoomId.delete(room.sender);
+    if (room.receiver) socketToRoomId.delete(room.receiver);
     rooms.delete(roomId);
   }
 }

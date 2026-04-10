@@ -65,7 +65,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: allowedOrigins, methods: ['GET', 'POST'] },
-  maxHttpBufferSize: 1e8, // 100 MB (not used for file data, just signaling)
+  maxHttpBufferSize: 1e6, // 1 MB — signaling payloads (SDP/ICE) are < 4 KB; a generous upper bound prevents oversized-message DoS
   transports: ['websocket', 'polling'],
 });
 

@@ -41,10 +41,11 @@ function checkRateLimit(socketId, eventName) {
   if (!max) return true; // no limit defined for this event
 
   const now = Date.now();
-  if (!socketRateLimits.has(socketId)) {
-    socketRateLimits.set(socketId, {});
+  let limits = socketRateLimits.get(socketId);
+  if (!limits) {
+    limits = {};
+    socketRateLimits.set(socketId, limits);
   }
-  const limits = socketRateLimits.get(socketId);
 
   if (!limits[eventName] || now > limits[eventName].resetAt) {
     limits[eventName] = { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS };

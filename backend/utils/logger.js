@@ -9,6 +9,14 @@
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Pre-computed label strings avoid toUpperCase() + padEnd() on every log call.
+const LEVEL_LABELS = {
+  info:  'INFO ',
+  warn:  'WARN ',
+  error: 'ERROR',
+  debug: 'DEBUG',
+};
+
 /**
  * Format a log line.
  * @param {'info'|'warn'|'error'|'debug'} level
@@ -18,7 +26,8 @@ const isDev = process.env.NODE_ENV !== 'production';
  */
 function formatLine(level, message, meta) {
   const ts = new Date().toISOString();
-  const base = `[${ts}] [${level.toUpperCase().padEnd(5)}] ${message}`;
+  const label = LEVEL_LABELS[level] ?? level.toUpperCase().padEnd(5);
+  const base = `[${ts}] [${label}] ${message}`;
   if (meta !== undefined) {
     const metaStr = typeof meta === 'object' ? JSON.stringify(meta) : String(meta);
     return `${base} ${metaStr}`;
